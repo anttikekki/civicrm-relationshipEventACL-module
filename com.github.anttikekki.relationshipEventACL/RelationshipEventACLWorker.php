@@ -1,6 +1,8 @@
 <?php
 
-require_once "RelationshipACLQueryWorker.php";
+if(class_exists('RelationshipACLQueryWorker') === false) {
+  require_once "RelationshipACLQueryWorker.php";
+}
 
 class RelationshipEventACLWorker {
   private $eventCustomFieldTable = "civicrm_value_tapahtuman_omistajuus_2";
