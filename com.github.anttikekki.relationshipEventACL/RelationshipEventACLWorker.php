@@ -1,17 +1,59 @@
 <?php
 
+/**
+* Only import worker if it is not already loaded. Multiple imports can happen
+* because relationshipACL and relationshipEvenACL modules uses same worker. 
+*/
 if(class_exists('RelationshipACLQueryWorker') === false) {
   require_once "RelationshipACLQueryWorker.php";
 }
 
+/**
+ * Worker to solve Event visibility and edit rights for user from relationship edit rights.
+ */
 class RelationshipEventACLWorker {
   private $eventCustomFieldTable = "civicrm_value_tapahtuman_omistajuus_2";
   private $eventCustomFieldContactIDColumn = "j_rjest_j_organisaatio_1";
   
+  /**
+  * Start worker.
+  *
+  * @param Page|Form $page CiviCRM Page or Form object from hook
+  */
   public function run(&$page) {
+    //Manage events
     if($page instanceof CRM_Event_Page_ManageEvent) {
       $this->filterEventRows($page);
       $this->createPager($page);
+    }
+    //Edit event
+    else if($page instanceof CRM_Event_Form_ManageEvent) {
+      $this->checkEventEditPermission($page);
+    }
+  }
+  
+  /**
+  * Check if current logged in user has rights to edit selected event. Show fatal error if no permission.
+  *
+  * @param Page|Form $page CiviCRM Page or Form object
+  */
+  private function checkEventEditPermission(&$page) {
+    $eventID = $page->_id;
+     
+    $currentUserContactID = $this->getCurrentUserContactID();
+    $allowedContactIDs = $this->getContactIDsWithEditPermissions($currentUserContactID);
+    
+    //Array with event ID as key and event owner contact ID as value
+    $eventOwnerMap = $this->getEventOwnerCustomFieldContactIDs();
+    
+    if(!array_key_exists($eventID, $eventOwnerMap)) {
+      return;
+    }
+    
+    $eventOwnerContactID = $eventOwnerMap[$eventID];
+    
+    if(!in_array($eventOwnerContactID, $allowedContactIDs)) {
+      CRM_Core_Error::fatal(ts('You do not have permission to view this event'));
     }
   }
   
@@ -22,6 +64,7 @@ class RelationshipEventACLWorker {
     $currentUserContactID = $this->getCurrentUserContactID();
     $allowedContactIDs = $this->getContactIDsWithEditPermissions($currentUserContactID);
     
+    //Array with event ID as key and event owner contact ID as value
     $eventOwnerMap = $this->getEventOwnerCustomFieldContactIDs();
     
     foreach ($rows as $eventID => &$row) {
