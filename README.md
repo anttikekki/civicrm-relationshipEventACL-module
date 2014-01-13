@@ -27,7 +27,7 @@ With this module User 1 can see and edit Event 2 but not Event 1. Event 2 is own
 
 This module uses temporary tables in database so CiviCRM MySQL user has to have permissions to create these kind of tables.
 
-### Performace considerations
+### Performance considerations
 This module performance on large CiviCRM sites may be poor. Module needs to determine the relationship tree structure on every administration event pageload. The relationship tree may be deep and complex. This means 1 query for every relationship level. The search done with help of temporary table in database.
 
 This logic may lead to multiple large queries and large temporary table on every event page load in contact administration.
