@@ -16,8 +16,8 @@ Portions of this module is based on the idea of [Relationship Permissions as ACL
 * User 1 (has edit relationship to Sub-organisation 1)
 
 Events
-*Event 1. Owned by Organisation 1.
-*Event 2. Owned by Sub-organisation 2.
+* Event 1. Owned by Organisation 1.
+* Event 2. Owned by Sub-organisation 2.
 
 With this module User 1 can see and edit Event 2 but not Event 1. Event 2 is owned by Sub-organisation 2 that User 1 has edit rights. User 1 does not have edit rights to Organisation 1 so this event is invisible to user.
 
