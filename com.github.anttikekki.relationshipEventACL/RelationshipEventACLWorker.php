@@ -12,6 +12,15 @@ if(class_exists('RelationshipACLQueryWorker') === false) {
  * Worker to solve Event visibility and edit rights for user from relationship edit rights.
  */
 class RelationshipEventACLWorker {
+
+  protected static $instance = null;
+  
+  /**
+  * Array of page or form class names that have been processe during this request. 
+  * This array is used to make sure that every page is only processed once per request.
+  */
+  protected static $processedPageClassNames = array();
+  
   /**
   * Event custom field table name.
   */
@@ -23,15 +32,26 @@ class RelationshipEventACLWorker {
   private $eventCustomFieldContactIDColumn = "j_rjest_j_organisaatio_1";
   
   /**
+  * Only getInstance() can create ne instance.
+  */
+  protected function __construct() {
+    
+  }
+  
+  /**
   * Start worker.
   *
   * @param CRM_Core_Page|CRM_Core_Form $page CiviCRM Page or Form object from hook
   */
   public function run(&$page) {
+    if($this->isPageProcessed($page)) {
+      return;
+    }
+  
     //Manage events
     if($page instanceof CRM_Event_Page_ManageEvent) {
       $this->filterManagementEventRows($page);
-      $this->createPager($page);
+      $this->createManageEventPager($page);
     }
     //Edit event
     else if($page instanceof CRM_Event_Form_ManageEvent) {
@@ -41,6 +61,24 @@ class RelationshipEventACLWorker {
     else if($page instanceof CRM_Event_Page_DashBoard) {
       $this->filterDashBoardEventRows($page);
     }
+    //Participant search
+    else if($page instanceof CRM_Event_Form_Search) {
+      $this->filterParticipants($page);
+      $this->createParticipantsSearchPager($page);
+    }
+    
+    //Add page or form class name to static array so that we can check that every page is only processed once
+    static::$processedPageClassNames[] = get_class($page);
+  }
+  
+  /**
+  * Check if current page is already processed by this module. Some hooks trigger multiple times. 
+  * One page can also trigger multiple triggers.
+  *
+  * @param CRM_Core_Page|CRM_Core_Form $page CiviCRM Page or Form object
+  */
+  public function isPageProcessed(&$page) {
+    return in_array(get_class($page), static::$processedPageClassNames);
   }
   
   /**
@@ -84,12 +122,53 @@ class RelationshipEventACLWorker {
   private function filterDashBoardEventRows(&$page) {
     $template = $page->getTemplate();
     $eventSummary = $template->get_template_vars("eventSummary");
+    
+    //If dashboard is empty, do nothing
+    if(!array_key_exists("events", $eventSummary)) {
+     return;
+    }
+    
     $rows = $eventSummary["events"];
-  
     $this->filterEventRows($rows);
     
     $eventSummary["events"] = $rows;
     $page->assign("eventSummary", $eventSummary);
+  }
+  
+  /**
+  * Iterates 'rows' array from template and removes participants to whom current logged in user does not have 
+  * editing rights. Editing rights are based on relationship tree.
+  *
+  * @param CRM_Core_Page|CRM_Core_Form $page CiviCRM Page or Form object
+  */
+  private function filterParticipants(&$page) {
+    $template = $page->getTemplate();
+    $rows = $template->get_template_vars("rows");
+    
+    //If there are no participants (this happens before search) do not continue
+    if(!is_array($rows)) {
+      return;
+    }
+    
+    $currentUserContactID = $this->getCurrentUserContactID();
+    
+    //All contact IDs the current logged in user has rights to edit through relationships
+    $allowedContactIDs = $this->getContactIDsWithEditPermissions($currentUserContactID);
+    
+    //Remove participants that current user do not have edit rights
+    foreach ($rows as $index => &$row) {
+      if(!in_array($row["contact_id"], $allowedContactIDs)) {
+        unset($rows[$index]);
+      }
+    }
+    
+    $template->assign("rows", $rows);
+    
+    //Update row count info
+    $rowCount = count($rows);
+    $rowsEmpty = $rowCount ? FALSE : TRUE;
+    $template->assign("rowsEmpty", $rowsEmpty);
+    $template->assign("rowCount", $rowCount);
   }
   
   /**
@@ -144,13 +223,14 @@ class RelationshipEventACLWorker {
   }
   
   /**
-  * Recreates pager to update it to new rowcount after filtering.
+  * Recreates pager to update it to new rowcount after filtering in Manage Events page.
   *
   * @param CRM_Core_Page|CRM_Core_Form $page CiviCRM Page or Form object
   */
-  private function createPager(&$page) {
+  private function createManageEventPager(&$page) {
     $rowCount = $this->getEventRowCount($page);
   
+    $params = array();
     $params['status'] = ts('Event %%StatusMessage%%');
     $params['csvString'] = NULL;
     $params['buttonTop'] = 'PagerTopButton';
@@ -161,6 +241,29 @@ class RelationshipEventACLWorker {
     }
     $params['total'] = $rowCount;
 
+    $pager = new CRM_Utils_Pager($params);
+    $page->assign_by_ref('pager', $pager);
+  }
+  
+  /**
+  * Recreates pager to update it to new rowcount after filtering in Participants search page.
+  *
+  * @param CRM_Core_Page|CRM_Core_Form $page CiviCRM Page or Form object
+  */
+  private function createParticipantsSearchPager(&$page) {
+    $template = $page->getTemplate();
+    $rows = $template->get_template_vars("rows");
+    $rowCount = count($rows);
+  
+    $params = array();
+    $params['status'] = NULL;
+    $params['pageID'] = $page->get(CRM_Utils_Pager::PAGE_ID);
+    $params['rowCount'] = $page->get(CRM_Utils_Pager::PAGE_ROWCOUNT);
+    if (!$params['rowCount']) {
+      $params['rowCount'] = CRM_Utils_Pager::ROWCOUNT;
+    }
+    $params['total'] = $rowCount;
+    
     $pager = new CRM_Utils_Pager($params);
     $page->assign_by_ref('pager', $pager);
   }
@@ -228,5 +331,17 @@ class RelationshipEventACLWorker {
     }
     
     return $contactIDs;
+  }
+  
+  /**
+  * Returns singleton instance of this worker.
+  *
+  * @return RelationshipEventACLWorker Worker
+  */
+  public static function getInstance() {
+      if (!isset(static::$instance)) {
+          static::$instance = new RelationshipEventACLWorker();
+      }
+      return static::$instance;
   }
 }

@@ -1,5 +1,9 @@
 <?php
 
+/**
+* RelationshipEventACLWorker hooks.
+*/
+
 require_once "RelationshipEventACLWorker.php";
 
 /**
@@ -8,7 +12,20 @@ require_once "RelationshipEventACLWorker.php";
 * @param CRM_Core_Page $page Current page.
 */
 function relationshipEventACL_civicrm_pageRun(&$page) {
-  $worker = new RelationshipEventACLWorker();
+  $worker = RelationshipEventACLWorker::getInstance();
+  $worker->run($page);
+}
+
+/**
+* Implemets CiviCRM 'alterTemplateFile' hook.
+*
+* @param String $formName Name of current form.
+* @param CRM_Core_Form $form Current form.
+* @param CRM_Core_Form $context Page or form.
+* @param String $tplName The file name of the tpl - alter this to alter the file in use.
+*/
+function relationshipEventACL_civicrm_alterTemplateFile($formName, &$form, $context, &$tplName) {
+  $worker = RelationshipEventACLWorker::getInstance();
   $worker->run($page);
 }
 
@@ -19,6 +36,6 @@ function relationshipEventACL_civicrm_pageRun(&$page) {
 * @param CRM_Core_Form $form Current form.
 */
 function relationshipEventACL_civicrm_buildForm($formName, &$form) {
-  $worker = new RelationshipEventACLWorker();
+  $worker = RelationshipEventACLWorker::getInstance();
   $worker->run($form);
 }
