@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <extension key="com.github.anttikekki.relationshipEventACL" type="module">
-  <downloadUrl>https://github.com/anttikekki/civicrm-relationshipEventACL-module/zipball/master</downloadUrl>
+  <downloadUrl>https://github.com/anttikekki/civicrm-relationshipEventACL-module/archive/1.0.zip</downloadUrl>
   <file>relationshipEventACL</file>
   <name>Relationship Event ACL Module</name>
   <description>Adds contact relationship edit permissions to ACL check. Makes allowed contacts visible and editable to user.</description>
@@ -10,7 +10,7 @@
     <url desc="Support">https://github.com/anttikekki/civicrm-relationshipACL-module</url>
     <url desc="Licensing">https://github.com/anttikekki/civicrm-relationshipACL-module/blob/master/LICENSE</url>
   </urls>
-  <license>Apache License Version 2.0</license>
+  <license>GNU Affero General Public License</license>
   <maintainer>
     <author>Antti Kekki</author>
     <email>anttikekki@gmail.com</email>
