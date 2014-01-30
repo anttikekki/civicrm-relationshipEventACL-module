@@ -39,3 +39,18 @@ function relationshipEventACL_civicrm_buildForm($formName, &$form) {
   $worker = RelationshipEventACLWorker::getInstance();
   $worker->run($form);
 }
+
+/**
+* Implemets CiviCRM 'navigationMenu' hook. Alters navigation menu to 
+* remove Pager from 'Manage Event' page. Pager is broken because of row 
+* filtering done by this module.
+*
+* Menu rebuild is required to make this work.
+*
+* @param Array $params Navigation menu structure.
+*/
+function relationshipEventACL_civicrm_navigationMenu(&$params) {
+  $url = $params[52]["child"][59]["attributes"]["url"];
+  $url = $url . "&crmRowCount=9999999";
+  $params[52]["child"][59]["attributes"]["url"] = $url;
+}

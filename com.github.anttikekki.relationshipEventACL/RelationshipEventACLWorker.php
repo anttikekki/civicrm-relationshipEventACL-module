@@ -13,6 +13,10 @@ if(class_exists('RelationshipACLQueryWorker') === false) {
  */
 class RelationshipEventACLWorker {
 
+  /**
+  * Singleton instance of this worker. Singleton is needed to check that 
+  * every page is only processed once.
+  */
   protected static $instance = null;
   
   /**
@@ -32,7 +36,7 @@ class RelationshipEventACLWorker {
   private $eventCustomFieldContactIDColumn = "j_rjest_j_organisaatio_1";
   
   /**
-  * Only getInstance() can create ne instance.
+  * Only getInstance() can create new instance. Hide constructor.
   */
   protected function __construct() {
     
@@ -51,7 +55,6 @@ class RelationshipEventACLWorker {
     //Manage events
     if($page instanceof CRM_Event_Page_ManageEvent) {
       $this->filterManagementEventRows($page);
-      $this->createManageEventPager($page);
     }
     //Edit event
     else if($page instanceof CRM_Event_Form_ManageEvent) {
@@ -64,7 +67,9 @@ class RelationshipEventACLWorker {
     //Participant search
     else if($page instanceof CRM_Event_Form_Search) {
       $this->filterParticipants($page);
-      $this->createParticipantsSearchPager($page);
+      
+      //JavaScript adds 'limit=0' to participants search form action URL. This removes paging.
+      CRM_Core_Resources::singleton()->addScriptFile('com.github.anttikekki.relationshipEventACL', 'participantsSearch.js');
     }
     
     //Add page or form class name to static array so that we can check that every page is only processed once
@@ -223,52 +228,6 @@ class RelationshipEventACLWorker {
   }
   
   /**
-  * Recreates pager to update it to new rowcount after filtering in Manage Events page.
-  *
-  * @param CRM_Core_Page|CRM_Core_Form $page CiviCRM Page or Form object
-  */
-  private function createManageEventPager(&$page) {
-    $rowCount = $this->getEventRowCount($page);
-  
-    $params = array();
-    $params['status'] = ts('Event %%StatusMessage%%');
-    $params['csvString'] = NULL;
-    $params['buttonTop'] = 'PagerTopButton';
-    $params['buttonBottom'] = 'PagerBottomButton';
-    $params['rowCount'] = $page->get(CRM_Utils_Pager::PAGE_ROWCOUNT);
-    if (!$params['rowCount']) {
-      $params['rowCount'] = CRM_Utils_Pager::ROWCOUNT;
-    }
-    $params['total'] = $rowCount;
-
-    $pager = new CRM_Utils_Pager($params);
-    $page->assign_by_ref('pager', $pager);
-  }
-  
-  /**
-  * Recreates pager to update it to new rowcount after filtering in Participants search page.
-  *
-  * @param CRM_Core_Page|CRM_Core_Form $page CiviCRM Page or Form object
-  */
-  private function createParticipantsSearchPager(&$page) {
-    $template = $page->getTemplate();
-    $rows = $template->get_template_vars("rows");
-    $rowCount = count($rows);
-  
-    $params = array();
-    $params['status'] = NULL;
-    $params['pageID'] = $page->get(CRM_Utils_Pager::PAGE_ID);
-    $params['rowCount'] = $page->get(CRM_Utils_Pager::PAGE_ROWCOUNT);
-    if (!$params['rowCount']) {
-      $params['rowCount'] = CRM_Utils_Pager::ROWCOUNT;
-    }
-    $params['total'] = $rowCount;
-    
-    $pager = new CRM_Utils_Pager($params);
-    $page->assign_by_ref('pager', $pager);
-  }
-  
-  /**
   * Returns current logged in user contact ID.
   *
   * @return int Contact ID
@@ -334,9 +293,10 @@ class RelationshipEventACLWorker {
   }
   
   /**
-  * Returns singleton instance of this worker.
+  * Returns singleton instance of this worker. Singleton is needed to check that 
+  * every page is only processed once.
   *
-  * @return RelationshipEventACLWorker Worker
+  * @return RelationshipEventACLWorker Worker instance
   */
   public static function getInstance() {
       if (!isset(static::$instance)) {
