@@ -21,6 +21,9 @@ Events
 
 With this module User 1 can see and edit Event 2 but not Event 1. Event 2 is owned by Sub-organisation 2 that User 1 has edit rights. User 1 does not have edit rights to Organisation 1 so this event is invisible to user.
 
+### Current implementation status
+This module filters search results rows on `Event Dashboard`, `Manage Events` and `Find participants` pages. It also prevents user from accessing Event edit page by URL.
+
 ### Installation
 1. Copy _com.github.anttikekki.relationshipEventACL_ folder to CiviCRM extension folder and enable extension in administration.
 2. Update `RelationshipEventACLWorker.php` `$eventCustomFieldTable` and `$eventCustomFieldContactIDColumn` to your Custom Field settings.
