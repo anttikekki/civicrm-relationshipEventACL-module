@@ -1,6 +1,35 @@
 <?php
 
+/**
+* Worker for creating temporary table with information of what contacts the given contact id 
+* has right to edit. Editing rights are determined from contact relation edit right info.
+*
+* This worker traverses the whole contact relation tree from given contact id.
+*
+* @version 1.0
+*/
 class RelationshipACLQueryWorker {
+  /**
+  * Loads all contact IDs where given contact has edit rights trough relationships.
+  *
+  * @return int[] Contact IDs.
+  */
+  public function getContactIDsWithEditPermissions($contactID) {
+    $contactTableName = $this->createContactsTableWithEditPermissions($contactID);
+    
+    $sql = "SELECT contact_id 
+      FROM $contactTableName
+    ";
+    $dao = CRM_Core_DAO::executeQuery($sql);
+    
+    $contactIDs = array();
+    while ($dao->fetch()) {
+      $contactIDs[] = $dao->contact_id;
+    }
+    
+    return $contactIDs;
+  }
+
   /**
    * Create temporary table of all permissioned contacts. Searches the whole 
    * relationships tree structure.

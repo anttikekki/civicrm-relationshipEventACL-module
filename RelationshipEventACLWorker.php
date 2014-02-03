@@ -158,7 +158,8 @@ class RelationshipEventACLWorker {
     $currentUserContactID = $this->getCurrentUserContactID();
     
     //All contact IDs the current logged in user has rights to edit through relationships
-    $allowedContactIDs = $this->getContactIDsWithEditPermissions($currentUserContactID);
+    $worker = new RelationshipACLQueryWorker();
+    $allowedContactIDs = $worker->getContactIDsWithEditPermissions($currentUserContactID);
     
     //Remove participants that current user do not have edit rights
     foreach ($rows as $index => &$row) {
@@ -186,7 +187,8 @@ class RelationshipEventACLWorker {
     $currentUserContactID = $this->getCurrentUserContactID();
     
     //All contact IDs the current logged in user has rights to edit through relationships
-    $allowedContactIDs = $this->getContactIDsWithEditPermissions($currentUserContactID);
+    $worker = new RelationshipACLQueryWorker();
+    $allowedContactIDs = $worker->getContactIDsWithEditPermissions($currentUserContactID);
     
     //Array with event ID as key and event owner contact ID as value
     $eventOwnerMap = $this->getEventOwnerCustomFieldContactIDs();
@@ -267,29 +269,6 @@ class RelationshipEventACLWorker {
     }
     
     return $result;
-  }
-
-  /**
-  * Loads all contact IDs where current logged in user has edit rights trouhg relationships.
-  * Uses RelationshipACLQueryWorker.
-  *
-  * @return int[] Contact IDs.
-  */
-  private function getContactIDsWithEditPermissions($contactID) {
-    $worker = new RelationshipACLQueryWorker();
-    $contactTableName = $worker->createContactsTableWithEditPermissions($contactID);
-    
-    $sql = "SELECT contact_id 
-      FROM $contactTableName
-    ";
-    $dao = CRM_Core_DAO::executeQuery($sql);
-    
-    $contactIDs = array();
-    while ($dao->fetch()) {
-      $contactIDs[] = $dao->contact_id;
-    }
-    
-    return $contactIDs;
   }
   
   /**
