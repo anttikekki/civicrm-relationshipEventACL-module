@@ -54,6 +54,7 @@ class RelationshipEventACLWorker {
   
     //Manage events
     if($page instanceof CRM_Event_Page_ManageEvent) {
+      $this->checkPagerRowCount();
       $this->filterManagementEventRows($page);
     }
     //Edit event
@@ -206,6 +207,20 @@ class RelationshipEventACLWorker {
       if(!in_array($eventOwnerContactID, $allowedContactIDs)) {
         unset($rows[$eventID]);
       }
+    }
+  }
+  
+  /**
+  * Checks that Manage Events URL contains crmRowCount parameter. 
+  * If not, do redirect to same page with crmRowCount paramer. crmRowCount is needed 
+  * to remove pager so all rows are always visible. Pager is broken because this module 
+  * filters rows after pager is constructed.
+  */
+  private function checkPagerRowCount() {
+    $currentURL = "http://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+    
+    if(!isset($_GET["crmRowCount"])) {
+      CRM_Utils_System::redirect($currentURL . "&crmRowCount=9999999");
     }
   }
   
