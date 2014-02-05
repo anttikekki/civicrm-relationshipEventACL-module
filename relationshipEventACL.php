@@ -27,8 +27,16 @@ function relationshipEventACL_civicrm_install() {
 * @param CRM_Core_Page $page Current page.
 */
 function relationshipEventACL_civicrm_pageRun(&$page) {
-  $worker = RelationshipEventACLWorker::getInstance();
-  $worker->run($page);
+  //Manage Events
+  if($page instanceof CRM_Event_Page_ManageEvent) {
+    $worker = new RelationshipEventACLWorker();
+    $worker->manageEventPageRunHook($page);
+  }
+  //Event Dashboard
+  else if($page instanceof CRM_Event_Page_DashBoard) {
+    $worker = new RelationshipEventACLWorker();
+    $worker->dashboardPageRunHook($page);
+  }
 }
 
 /**
@@ -40,8 +48,11 @@ function relationshipEventACL_civicrm_pageRun(&$page) {
 * @param String $tplName The file name of the tpl - alter this to alter the file in use.
 */
 function relationshipEventACL_civicrm_alterTemplateFile($formName, &$form, $context, &$tplName) {
-  $worker = RelationshipEventACLWorker::getInstance();
-  $worker->run($page);
+  //Participant search
+  if($form instanceof CRM_Event_Form_Search) {
+    $worker = new RelationshipEventACLWorker();
+    $worker->participantSearchAlterTemplateFileHook($form);
+  }
 }
 
 /**
@@ -51,8 +62,11 @@ function relationshipEventACL_civicrm_alterTemplateFile($formName, &$form, $cont
 * @param CRM_Core_Form $form Current form.
 */
 function relationshipEventACL_civicrm_buildForm($formName, &$form) {
-  $worker = RelationshipEventACLWorker::getInstance();
-  $worker->run($form);
+  //Edit Event form
+  if($form instanceof CRM_Event_Form_ManageEvent) {
+    $worker = new RelationshipEventACLWorker();
+    $worker->eventFormBuildFormHook($form);
+  }
 }
 
 /**

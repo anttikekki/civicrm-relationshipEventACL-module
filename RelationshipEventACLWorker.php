@@ -21,12 +21,6 @@ if(class_exists('CustomFieldHelper') === false) {
  * Worker to solve Event visibility and edit rights for user from relationship edit rights.
  */
 class RelationshipEventACLWorker {
-
-  /**
-  * Singleton instance of this worker. Singleton is needed to check that 
-  * every page is only processed once.
-  */
-  protected static $instance = null;
   
   /**
   * Config key for civicrm_relationshipeventacl_config table. This key 
@@ -37,61 +31,47 @@ class RelationshipEventACLWorker {
   protected $configKey_eventOwnerCustomGroupName = "eventOwnerCustomGroupName";
   
   /**
-  * Array of page or form class names that have been processe during this request. 
-  * This array is used to make sure that every page is only processed once per request.
+  * Executed when Participant search form is built.
+  * Filters participant rows based on permissions. Disables pager.
+  *
+  * @param CRM_Event_Form_Search $form Search participants form
   */
-  protected static $processedPageClassNames = array();
-  
-  /**
-  * Only getInstance() can create new instance. Hide constructor.
-  */
-  protected function __construct() {
+  public function participantSearchAlterTemplateFileHook(&$form) {
+    $this->filterParticipants($form);
     
+    //JavaScript adds 'limit=0' to participants search form action URL. This removes paging.
+    CRM_Core_Resources::singleton()->addScriptFile('com.github.anttikekki.relationshipEventACL', 'participantsSearch.js');
   }
   
   /**
-  * Start worker.
+  * Executed when Manage Events page is built.
+  * Disables pager and filters Event rows based on permissions.
   *
-  * @param CRM_Core_Page|CRM_Core_Form $page CiviCRM Page or Form object from hook
+  * @param CRM_Event_Page_ManageEvent $page Manage Events page
   */
-  public function run(&$page) {
-    if($this->isPageProcessed($page)) {
-      return;
-    }
-  
-    //Manage events
-    if($page instanceof CRM_Event_Page_ManageEvent) {
-      $this->checkPagerRowCount();
-      $this->filterManagementEventRows($page);
-    }
-    //Edit event
-    else if($page instanceof CRM_Event_Form_ManageEvent) {
-      $this->checkEventEditPermission($page);
-    }
-    //Dashboard
-    else if($page instanceof CRM_Event_Page_DashBoard) {
-      $this->filterDashBoardEventRows($page);
-    }
-    //Participant search
-    else if($page instanceof CRM_Event_Form_Search) {
-      $this->filterParticipants($page);
-      
-      //JavaScript adds 'limit=0' to participants search form action URL. This removes paging.
-      CRM_Core_Resources::singleton()->addScriptFile('com.github.anttikekki.relationshipEventACL', 'participantsSearch.js');
-    }
-    
-    //Add page or form class name to static array so that we can check that every page is only processed once
-    static::$processedPageClassNames[] = get_class($page);
+  public function manageEventPageRunHook(&$page) {
+    $this->checkPagerRowCount();
+    $this->filterManagementEventRows($page);
   }
   
   /**
-  * Check if current page is already processed by this module. Some hooks trigger multiple times. 
-  * One page can also trigger multiple triggers.
+  * Executed when Event Dashboard is built.
+  * Filters Event rows based on permissions.
   *
-  * @param CRM_Core_Page|CRM_Core_Form $page CiviCRM Page or Form object
+  * @param CRM_Event_Page_DashBoard $page Dashboard page
   */
-  public function isPageProcessed(&$page) {
-    return in_array(get_class($page), static::$processedPageClassNames);
+  public function dashboardPageRunHook(&$page) {
+    $this->filterDashBoardEventRows($page);
+  }
+  
+  /**
+  * Executed when Event form is built.
+  * Checks if user has rights to edit this event.
+  *
+  * @param CRM_Event_Form_ManageEvent $form Event form
+  */
+  public function eventFormBuildFormHook(&$form) {
+    $this->checkEventEditPermission($form);
   }
   
   /**
@@ -266,18 +246,5 @@ class RelationshipEventACLWorker {
     ";
     
     return CRM_Core_DAO::singleValueQuery($sql);
-  }
-  
-  /**
-  * Returns singleton instance of this worker. Singleton is needed to check that 
-  * every page is only processed once.
-  *
-  * @return RelationshipEventACLWorker Worker instance
-  */
-  public static function getInstance() {
-      if (!isset(static::$instance)) {
-          static::$instance = new RelationshipEventACLWorker();
-      }
-      return static::$instance;
   }
 }
