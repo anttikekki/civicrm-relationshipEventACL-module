@@ -9,6 +9,15 @@ if(class_exists('RelationshipACLQueryWorker') === false) {
 }
 
 /**
+* Only import worker if it is not already loaded. Multiple imports can happen
+* because relationshipACL and relationshipEvenACL modules uses same worker. 
+*/
+if(class_exists('CustomFieldHelper') === false) {
+  require_once "CustomFieldHelper.php";
+}
+
+
+/**
  * Worker to solve Event visibility and edit rights for user from relationship edit rights.
  */
 class RelationshipEventACLWorker {
@@ -20,20 +29,18 @@ class RelationshipEventACLWorker {
   protected static $instance = null;
   
   /**
+  * Config key for civicrm_relationshipeventacl_config table. This key 
+  * stores name of Event Custom field group that stores event owner contact id.
+  *
+  * @var string
+  */
+  protected $configKey_eventOwnerCustomGroupName = "eventOwnerCustomGroupName";
+  
+  /**
   * Array of page or form class names that have been processe during this request. 
   * This array is used to make sure that every page is only processed once per request.
   */
   protected static $processedPageClassNames = array();
-  
-  /**
-  * Event custom field table name.
-  */
-  private $eventCustomFieldTable = "civicrm_value_tapahtuman_omistajuus_2";
-  
-  /**
-  * Event custom field table contact ID column name.
-  */
-  private $eventCustomFieldContactIDColumn = "j_rjest_j_organisaatio_1";
   
   /**
   * Only getInstance() can create new instance. Hide constructor.
@@ -192,7 +199,8 @@ class RelationshipEventACLWorker {
     $allowedContactIDs = $worker->getContactIDsWithEditPermissions($currentUserContactID);
     
     //Array with event ID as key and event owner contact ID as value
-    $eventOwnerMap = $this->getEventOwnerCustomFieldContactIDs();
+    $worker = new CustomFieldHelper($this->getEventOwnerCustomGroupNameFromConfig());
+    $eventOwnerMap = $worker->loadAllValues();
     
     foreach ($rows as $eventID => &$row) {
       //Skip events that does not have owner info. These are always visible.
@@ -225,26 +233,6 @@ class RelationshipEventACLWorker {
   }
   
   /**
-  * Count the length of 'rows' array from template. Counts only rows with integer id.
-  *
-  * @param CRM_Core_Page|CRM_Core_Form $page CiviCRM Page or Form object
-  * @return int rowcount
-  */
-  private function getEventRowCount(&$page) {
-    $template = $page->getTemplate();
-    $rows = $template->get_template_vars("rows");
-    $eventCount = 0;
-    
-    foreach ($rows as $eventID => &$row) {
-      if(is_int($eventID)) {
-        $eventCount++;
-      }
-    }
-    
-    return $eventCount;
-  }
-  
-  /**
   * Returns current logged in user contact ID.
   *
   * @return int Contact ID
@@ -263,27 +251,21 @@ class RelationshipEventACLWorker {
     
     return $contact_id;
   }
-
-  /**
-  * Loads all event owner custom field data.
-  *
-  * @return array Associative array where key is event ID and value is contact ID.
-  */
-  private function getEventOwnerCustomFieldContactIDs() {
-    $contactIDColumn = $this->eventCustomFieldContactIDColumn;
-    $customFieldTable = $this->eventCustomFieldTable;
   
-    $sql = "SELECT entity_id AS event_id, $contactIDColumn AS contact_id 
-      FROM $customFieldTable
+  /**
+  * Return Contribution custom field group name that is used to store contribution 
+  * owner contact id.
+  *
+  * @return string Custom field group title name.
+  */
+  private function getEventOwnerCustomGroupNameFromConfig() {
+    $sql = "
+      SELECT config_value  
+      FROM civicrm_relationshipeventacl_config
+      WHERE config_key = '".$this->configKey_eventOwnerCustomGroupName."'
     ";
-    $dao = CRM_Core_DAO::executeQuery($sql);
     
-    $result = array();
-    while ($dao->fetch()) {
-      $result[$dao->event_id] = $dao->contact_id;
-    }
-    
-    return $result;
+    return CRM_Core_DAO::singleValueQuery($sql);
   }
   
   /**

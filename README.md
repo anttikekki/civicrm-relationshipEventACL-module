@@ -26,7 +26,7 @@ This module filters search results rows on `Event Dashboard`, `Manage Events` an
 
 ### Installation
 1. Copy _com.github.anttikekki.relationshipEventACL_ folder to CiviCRM extension folder and enable extension in administration.
-2. Update `RelationshipEventACLWorker.php` `$eventCustomFieldTable` and `$eventCustomFieldContactIDColumn` to your Custom Field settings.
+2. Insert row to this module configuration table `civicrm_relationshipeventacl_config`. `config_key` column value is `eventOwnerCustomGroupName` and `congif_value` column value is Event custom field group title name that stores owner contact info.
 3. Rebuild navigation menu. Go to Administer -> System Settings -> Cleanup Caches and Update Paths and push `Cleanup caches`
 
 This module uses temporary tables in database so CiviCRM MySQL user has to have permissions to create these kind of tables.

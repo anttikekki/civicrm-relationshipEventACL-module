@@ -7,6 +7,21 @@
 require_once "RelationshipEventACLWorker.php";
 
 /**
+* Implements CiviCRM 'install' hook.
+*/
+function relationshipEventACL_civicrm_install() {
+  //Add table for configuration
+  $sql = "
+    CREATE TABLE IF NOT EXISTS civicrm_relationshipeventacl_config (
+      config_key varchar(255) NOT NULL,
+      config_value varchar(255) NOT NULL,
+      PRIMARY KEY (`config_key`)
+    ) ENGINE=InnoDB;
+  ";
+  CRM_Core_DAO::executeQuery($sql);
+}
+
+/**
 * Implemets CiviCRM 'pageRun' hook.
 *
 * @param CRM_Core_Page $page Current page.
