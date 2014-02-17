@@ -65,6 +65,24 @@ class RelationshipEventACLWorker {
   }
   
   /**
+  * Executed when Event participant contribution page is built.
+  * Checks if user has rights to edit contribution.
+  *
+  * @param CRM_Contribute_Page_Tab $page Contribution edit page
+  */
+  public function contributionPageRunHook(&$page) {
+    /*
+    * CRM_Contribute_Page_Tab is also used to load snippets by Ajax. 
+    * Lets only check permissions for main page and not for Ajax snippets.
+    */
+    if(isset($_GET["snippet"])) {
+      return;
+    }
+    
+    $this->checkParticipantContributionEditPermission($page);
+  }
+  
+  /**
   * Executed when Event form is built.
   * Checks if user has rights to edit this event.
   *
@@ -88,6 +106,37 @@ class RelationshipEventACLWorker {
     
     if(count($rows) === 0) {
       CRM_Core_Error::fatal(ts('You do not have permission to view this event'));
+    }
+  }
+  
+  /**
+  * Check if current logged in user has rights to edit selected contribution. Show fatal error if no permission.
+  *
+  * @param CRM_Contribute_Page_Tab $page Contribution edit page
+  */
+  private function checkParticipantContributionEditPermission(&$page) {
+    $contributionId = $page->_id;
+    $dao = new CRM_Contribute_DAO_Contribution();
+    $dao->get("id", $contributionId);
+    $contributonPageId = $dao->contribution_page_id;
+    
+    /*
+    * Contribution page contribution edit rights are checked by relationshipContributionACL extension. 
+    * Contributions that has contribution_page_id set belong to Contribution page.
+    */
+    if(isset($contributonPageId)) {
+      return;
+    }
+  
+    //Find event id from civicrm_participant_payment and civicrm_participant tables
+    $eventID = $this->getContributionEventId($contributionId);
+    
+    $rows = array();
+    $rows[$eventID] = array();
+    $this->filterEventRows($rows);
+    
+    if(count($rows) === 0) {
+      CRM_Core_Error::fatal(ts('You do not have permission to view this contribution'));
     }
   }
   
@@ -253,5 +302,33 @@ class RelationshipEventACLWorker {
     }
     
     return $customGroupName;
+  }
+  
+  /**
+  * Find event id for Event participation contribution.
+  *
+  * @param int|string $contributionId Contribution id
+  * @return int Event id
+  */
+  private function getContributionEventId($contributionId) {
+    $contributionId = (int) $contributionId;
+  
+    //Find participant id
+    $sql = "
+      SELECT participant_id  
+      FROM civicrm_participant_payment
+      WHERE contribution_id = $contributionId
+    ";
+    
+    $participantId = CRM_Core_DAO::singleValueQuery($sql);
+    
+    //Find event id
+    $sql = "
+      SELECT event_id  
+      FROM civicrm_participant
+      WHERE id = $participantId
+    ";
+    
+    return CRM_Core_DAO::singleValueQuery($sql);
   }
 }
