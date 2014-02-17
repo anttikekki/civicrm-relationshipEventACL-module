@@ -9,6 +9,9 @@ This module requires a custom field to event that specifies event owner contact 
 
 Portions of this module is based on the idea of [Relationship Permissions as ACLs] (https://civicrm.org/extensions/relationship-permissions-acls) extension. This module includes code from [relationshipACL](https://github.com/anttikekki/civicrm-relationshipACL-module) module.
 
+### Version history
+Version history and changelog is available in [Releases](https://github.com/anttikekki/civicrm-relationshipEventACL-module/releases).
+
 ### Example
 * Organisation 1
 * Sub-organisation 1 (Organisation 1 has edit relationship to this organisation)
