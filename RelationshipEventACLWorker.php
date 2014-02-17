@@ -83,6 +83,24 @@ class RelationshipEventACLWorker {
   }
   
   /**
+  * Executed when Event participant page is built.
+  * Checks if user has rights to edit participant.
+  *
+  * @param CRM_Event_Page_Tab $page Participant edit page
+  */
+  public function participantPageRunHook(&$page) {
+    /*
+    * CRM_Event_Page_Tab is also used to load snippets by Ajax. 
+    * Lets only check permissions for main page and not for Ajax snippets.
+    */
+    if(isset($_GET["snippet"])) {
+      return;
+    }
+    
+    $this->checkParticipantEditPermission($page);
+  }
+  
+  /**
   * Executed when Event form is built.
   * Checks if user has rights to edit this event.
   *
@@ -106,6 +124,24 @@ class RelationshipEventACLWorker {
     
     if(count($rows) === 0) {
       CRM_Core_Error::fatal(ts('You do not have permission to view this event'));
+    }
+  }
+  
+  /**
+  * Check if current logged in user has rights to edit selected participant. Show fatal error if no permission.
+  *
+  * @param CRM_Event_Page_Tab $page Participant edit page
+  */
+  private function checkParticipantEditPermission(&$page) {
+    $participantId = $page->_id;
+    $eventID = $this->getParticipantEventId($participantId);
+    
+    $rows = array();
+    $rows[$eventID] = array();
+    $this->filterEventRows($rows);
+    
+    if(count($rows) === 0) {
+      CRM_Core_Error::fatal(ts('You do not have permission to edit this participant'));
     }
   }
   
@@ -322,7 +358,18 @@ class RelationshipEventACLWorker {
     
     $participantId = CRM_Core_DAO::singleValueQuery($sql);
     
-    //Find event id
+    return $this->getParticipantEventId($participantId);
+  }
+  
+  /**
+  * Find event id for Event participation.
+  *
+  * @param int|string $participantId Contribution id
+  * @return int Event id
+  */
+  private function getParticipantEventId($participantId) {
+    $participantId = (int) $participantId;
+    
     $sql = "
       SELECT event_id  
       FROM civicrm_participant

@@ -42,6 +42,11 @@ function relationshipEventACL_civicrm_pageRun(&$page) {
     $worker = new RelationshipEventACLWorker();
     $worker->contributionPageRunHook($page);
   }
+  //Partcipant edit page
+  else if($page instanceof CRM_Event_Page_Tab) {
+    $worker = new RelationshipEventACLWorker();
+    $worker->participantPageRunHook($page);
+  }
 }
 
 /**
