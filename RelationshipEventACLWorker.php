@@ -214,7 +214,7 @@ class RelationshipEventACLWorker {
   }
   
   /**
-  * Iterates 'rows' array from template and removes participants to whom current logged in user does not have 
+  * Iterates 'rows' array from template and removes participants to which event logged in user does not have 
   * editing rights. Editing rights are based on relationship tree.
   *
   * @param CRM_Core_Page|CRM_Core_Form $page CiviCRM Page or Form object
@@ -234,9 +234,23 @@ class RelationshipEventACLWorker {
     $worker = new RelationshipACLQueryWorker();
     $allowedContactIDs = $worker->getContactIDsWithEditPermissions($currentUserContactID);
     
-    //Remove participants that current user do not have edit rights
+    //Array with event ID as key and event owner contact ID as value
+    $worker = new CustomFieldHelper($this->getEventOwnerCustomGroupNameFromConfig());
+    $eventOwnerMap = $worker->loadAllValues();
+    
     foreach ($rows as $index => &$row) {
-      if(!in_array($row["contact_id"], $allowedContactIDs)) {
+      $eventID = $row["event_id"];
+    
+      //Skip events that does not have owner info. These are always visible.
+      if(!array_key_exists($eventID, $eventOwnerMap)) {
+        continue;
+      }
+      
+      //Get event owner contact ID from custom field
+      $eventOwnerContactID = $eventOwnerMap[$eventID];
+      
+      //If logged in user contact ID is not allowed to edit event, remove event from array
+      if(!in_array($eventOwnerContactID, $allowedContactIDs)) {
         unset($rows[$index]);
       }
     }
