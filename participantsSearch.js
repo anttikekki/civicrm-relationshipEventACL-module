@@ -8,7 +8,8 @@ cj(function ($) {
   
   var form = $('#Search');
   var action = form.attr('action');
-  action = action + '&limit=0';
+  var noURLParameters = action.indexOf('?') === -1;
+  action = action + (noURLParameters ? '?' : '&') + 'limit=0';
   form.attr('action', action);
 
 });

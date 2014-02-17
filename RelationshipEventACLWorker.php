@@ -245,6 +245,13 @@ class RelationshipEventACLWorker {
       WHERE config_key = '".$this->configKey_eventOwnerCustomGroupName."'
     ";
     
-    return CRM_Core_DAO::singleValueQuery($sql);
+    $customGroupName = CRM_Core_DAO::singleValueQuery($sql);
+    
+    if(!isset($customGroupName)) {
+      CRM_Core_Error::fatal(ts('relationshipEventACL extension requires Custom field config for Event ownership. '.
+      'Add Custom group name to civicrm_relationshipeventacl_config table.'));
+    }
+    
+    return $customGroupName;
   }
 }
