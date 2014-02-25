@@ -63,6 +63,11 @@ function relationshipEventACL_civicrm_alterTemplateFile($formName, &$form, $cont
     $worker = new RelationshipEventACLWorker();
     $worker->participantSearchAlterTemplateFileHook($form);
   }
+  //Contribution search
+  else if($form instanceof CRM_Contribute_Form_Search) {
+    $worker = new RelationshipEventACLWorker();
+    $worker->contributionSearchAlterTemplateFileHook($form);
+  }
 }
 
 /**

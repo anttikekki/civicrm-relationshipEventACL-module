@@ -45,6 +45,18 @@ class RelationshipEventACLWorker {
   }
   
   /**
+  * Executed when Contribution search form is built.
+  * Filters Contributions rows based on permissions.
+  *
+  * @param CRM_Contribute_Form_Search $form Search Contributions form
+  */
+  public function contributionSearchAlterTemplateFileHook(&$form) {
+    $this->filterEventContributionsSearchFormResults($form);
+    
+    //No need to add JavaScript to modify pager because it is done by relationshipCOntributionACL module.
+  }
+  
+  /**
   * Executed when Manage Events page is built.
   * Disables pager and filters Event rows based on permissions.
   *
@@ -174,6 +186,96 @@ class RelationshipEventACLWorker {
     
     if(count($rows) === 0) {
       CRM_Core_Error::fatal(ts('You do not have permission to view this contribution'));
+    }
+  }
+  
+  /**
+  * Iterates 'row' array from template and removes Contributions that belongs to Event that current logged in user does not have 
+  * editing rights. Editing rights are based on relationship tree.
+  *
+  * @param CRM_Contribute_Form_Search CiviCRM Page for Contribution search
+  */
+  private function filterEventContributionsSearchFormResults(&$form) {
+    $template = $form->getTemplate();
+    $rows = $template->get_template_vars("rows");
+    
+    //If there are no contribution search results (this happens before search) do not continue
+    if(!is_array($rows)) {
+      return;
+    }
+  
+    $this->filterEventContributions($rows);
+    $template->assign("rows", $rows);
+    
+    //Update row count info
+    $rowCount = count($rows);
+    $rowsEmpty = $rowCount ? FALSE : TRUE;
+    $template->assign("rowsEmpty", $rowsEmpty);
+    $template->assign("rowCount", $rowCount);
+  }
+  
+  /**
+  * Iterates rows array from template and removes Contributions that belongs to Events where current logged in user does not have 
+  * editing rights. Editing rights are based on relationship tree.
+  *
+  * @param array $rows Array of Contributions
+  */
+  private function filterEventContributions(&$rows) {    
+    //If there are no contribution search results (this happens before search) do not continue
+    if(!is_array($rows)) {
+      return;
+    }
+    
+    //Find all contribution ids
+    $contributionIds = array();
+    foreach ($rows as $index => &$row) {
+      $contributionIds[] = $row["contribution_id"];
+    }
+    
+    /*
+    * Find Event ids for contributions. Uses civicrm_participant_payment table to link Contribution to Event.
+    * Return value array key is Contribution id and value is Event id.
+    * Returned array contains contribution ids only for Event participant contributions.
+    */
+    $contributionEventIds = $this->getContributionsEventIds($contributionIds);
+    //print_r($contributionIds);
+    //print_r($contributionEventIds);
+    
+    $currentUserContactID = $this->getCurrentUserContactID();
+    
+    //All contact IDs the current logged in user has rights to edit through relationships
+    $aclWorker = RelationshipACLQueryWorker::getInstance();
+    $allowedContactIDs = $aclWorker->getContactIDsWithEditPermissions($currentUserContactID);
+    
+    //Array with event ID as key and event owner contact ID as value
+    $customFieldWorker = new CustomFieldHelper($this->getEventOwnerCustomGroupNameFromConfig());
+    $eventOwnerMap = $customFieldWorker->loadAllValues();
+    
+    foreach ($rows as $index => &$row) {
+      $contributionId = $row["contribution_id"];
+      
+      /*
+      * If contribution id is not found it means that contribution is from Contribution page. 
+      * Contribution page Contributions are filtered by relationshipContributionACL module.
+      */
+      if(!isset($contributionEventIds[$contributionId])) {
+        continue;
+      }
+      
+      $eventId = $contributionEventIds[$contributionId];
+    
+      //Skip Events that does not have owner info. These contributions are always visible.
+      if(!array_key_exists($eventId, $eventOwnerMap)) {
+        continue;
+      }
+      
+      //Get event owner contact ID from custom field
+      $eventOwnerContactID = $eventOwnerMap[$eventId];
+      
+      //If logged in user contact ID is not allowed to edit event, remove contribution from array
+      if(!in_array($eventOwnerContactID, $allowedContactIDs)) {
+        unset($rows[$index]);
+      }
     }
   }
   
@@ -377,6 +479,32 @@ class RelationshipEventACLWorker {
   }
   
   /**
+  * Find event id for Event participation contributions.
+  *
+  * @param array $contributionIds Contribution ids
+  * @return array Array where key is contribution id and value is Event id
+  */
+  private function getContributionsEventIds($contributionIds) {
+    //Remove values that are not numeric
+    $contributionIds = array_filter($contributionIds, "is_numeric");
+  
+    $sql = "
+      SELECT contribution_id, participant_id  
+      FROM civicrm_participant_payment
+      WHERE contribution_id IN (". implode(",", $contributionIds) .")
+    ";
+    
+    $dao = CRM_Core_DAO::executeQuery($sql);
+    
+    $participantIdForContributionId = array();
+    while ($dao->fetch()) {
+      $participantIdForContributionId[$dao->contribution_id] = $dao->participant_id;
+    }
+    
+    return $this->getParticipantsEventIds($participantIdForContributionId);
+  }
+  
+  /**
   * Find event id for Event participation.
   *
   * @param int|string $participantId Contribution id
@@ -392,5 +520,32 @@ class RelationshipEventACLWorker {
     ";
     
     return CRM_Core_DAO::singleValueQuery($sql);
+  }
+  
+  /**
+  * Find event id for Event participations.
+  *
+  * @param array $participantIdForContributionId Array where key is contribution id and value is Participant id
+  * @return array Array where key is contribution id and value is Event id
+  */
+  private function getParticipantsEventIds($participantIdForContributionId) {
+    $sql = "
+      SELECT id, event_id  
+      FROM civicrm_participant
+      WHERE id IN (". implode(",", $participantIdForContributionId) .")
+    ";
+    
+    $dao = CRM_Core_DAO::executeQuery($sql);
+    
+    $eventIdForParticipantId = array();
+    while ($dao->fetch()) {
+      $eventIdForParticipantId[$dao->id] = $dao->event_id;
+    }
+    
+    foreach ($participantIdForContributionId as $contributionId => $participantId) {
+      $participantIdForContributionId[$contributionId] = $eventIdForParticipantId[$participantId];
+    }
+    
+    return $participantIdForContributionId;
   }
 }
