@@ -6,20 +6,46 @@
 *
 * This worker traverses the whole contact relation tree from given contact id.
 *
-* @version 1.0
+* @version 1.1
 */
 class RelationshipACLQueryWorker {
+
+  /**
+  * Version of this worker
+  */
+  const VERSION = "1.1";
+
+  /**
+  * Singleton instace of this worker
+  *
+  * @var RelationshipACLQueryWorker
+  */
+  private static $instance = null;
+  
+  /**
+  * This worker result table. NULL if worjer is not executed.
+  *
+  * @var string
+  */
+  private $resultTableName = NULL;
+  
+  /**
+  * Hide public constructor to force singleton pattern.
+  */
+  protected function __construct() {}
+
   /**
   * Loads all contact IDs where given contact has edit rights trough relationships.
   *
+  * @param int|string $contactID Contact Id that edit rights are queried.
   * @return int[] Contact IDs.
   */
   public function getContactIDsWithEditPermissions($contactID) {
-    $contactTableName = $this->createContactsTableWithEditPermissions($contactID);
+    if(!isset($this->resultTableName)) {
+      $this->createContactsTableWithEditPermissions($contactID);
+    }
     
-    $sql = "SELECT contact_id 
-      FROM $contactTableName
-    ";
+    $sql = "SELECT contact_id FROM " . $this->resultTableName;
     $dao = CRM_Core_DAO::executeQuery($sql);
     
     $contactIDs = array();
@@ -35,8 +61,13 @@ class RelationshipACLQueryWorker {
    * relationships tree structure.
    * 
    * @param int $contactID Contact id of user of whom relationships we search
+   * @return string Result table name. Table contains contact_id field.
    */
   public function createContactsTableWithEditPermissions($contactID) {
+    if(isset($this->resultTableName)) {
+      return $this->resultTableName;
+    }
+  
     $resultTableName = 'relationship_event_acl_result' . rand(10000, 100000);
     $workTableName = 'relationship_event_acl_worktemp' . rand(10000, 100000);
     
@@ -64,6 +95,7 @@ class RelationshipACLQueryWorker {
       $continueSearch = $oldRowCount < $newRowCount;
     }
 
+    $this->resultTableName = $resultTableName;
     return $resultTableName;
   }
 
@@ -179,9 +211,35 @@ class RelationshipACLQueryWorker {
   * @param string $tableName Table where row count is queried
   * @return int table row count
   */
-  function getRowCount($tableName) {
+  private function getRowCount($tableName) {
     $sql = "SELECT COUNT(*)  
       FROM $tableName";
     return (int) CRM_Core_DAO::singleValueQuery($sql);
+  }
+  
+  
+  
+  /**
+  * Call this method to get singleton RelationshipACLQueryWorker
+  *
+  * @return RelationshipACLQueryWorker
+  */
+  public static function getInstance() {
+    if (!isset(static::$instance)) {
+      static::$instance = new RelationshipACLQueryWorker();
+    }
+    return static::$instance;
+  }
+  
+  /**
+  * Checks that this RelationshipACLQueryWorker version number is same as parameter version number. 
+  * Throws CiviCRM fatal exception id version is wrong.
+  *
+  * @param string $version Version nunmber as String 
+  */
+  public static function checkVersion($version) {
+    if(RelationshipACLQueryWorker::VERSION !== $version) {
+      CRM_Core_Error::fatal("RelationshipACLQueryWorker is version ". RelationshipACLQueryWorker::VERSION ." and not version ". $version);
+    }
   }
 }
