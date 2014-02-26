@@ -17,6 +17,10 @@ if(class_exists('CustomFieldHelper') === false) {
   require_once "CustomFieldHelper.php";
 }
 
+/**
+* Only import phpQuery if it is not already loaded. Multiple imports can happen
+* because relationshipEvenACL module uses same worker. 
+*/
 if(class_exists('phpQuery') === false) {
   require_once('phpQuery.php');
 }
@@ -37,7 +41,7 @@ class RelationshipEventACLWorker {
   
   /**
   * Executed when Contact Contributions tab is built.
-  * Filters contribution rows based on Contribution page owner.
+  * Filters Contribution page contribution rows based on Contribution page owner.
   *
   * Html manipulation is required because page data before rendering can not be manipulated with hooks. 
   * Contact Contributions tab is class CRM_Contribute_Page_Tab that embeds instance of CRM_Contribute_Form_Search.
@@ -216,11 +220,16 @@ class RelationshipEventACLWorker {
   private function filterContactContributionTableHTMLRows(&$html) {
     $doc = phpQuery::newDocumentHTML($html);
     $contributionIds = $this->getContributionSearchFormHtmlTableContributionIds($doc);
-    $allowedContributionIds = $this->getAllowedContributionIds($contributionIds);
+    $allowedEventContributionIds = $this->getAllowedEventContributionIds($contributionIds);
     
-    //Remove rows that are not allowed to current logged in user
-    foreach ($allowedContributionIds as $contributionId) {
-      $doc->find("#Search tr.crm-contribution_" . $contributionId)->remove();
+    /* 
+    * Remove Event contribution rows that are not allowed to current logged in user.
+    * Contribution page contributions are filtered by relationshipContributionACL module.
+    */
+    foreach ($contributionIds as $contributionId) {
+      if(!in_array($contributionId, $allowedEventContributionIds)) {
+        $doc->find("#Search tr.crm-contribution_" . $contributionId)->remove();
+      }
     }
     
     $html = $doc->getDocument();
@@ -263,7 +272,7 @@ class RelationshipEventACLWorker {
       $contributionIds[] = $row["contribution_id"];
     }
     
-    $allowedContributionIds = $this->getAllowedContributionIds($contributionIds);
+    $allowedContributionIds = $this->getAllowedEventContributionIds($contributionIds);
     
     foreach ($rows as $index => &$row) {
       $contributionId = $row["contribution_id"];
@@ -281,7 +290,7 @@ class RelationshipEventACLWorker {
   * @param array $contributionIds Array of Contribution ids
   * @return array Array of allowed Contribution ids
   */
-  private function getAllowedContributionIds($contributionIds) {
+  private function getAllowedEventContributionIds($contributionIds) {
     /*
     * Find Event ids for contributions. Uses civicrm_participant_payment table to link Contribution to Event.
     * Return value array key is Contribution id and value is Event id.
