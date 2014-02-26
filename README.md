@@ -5,6 +5,19 @@ civicrm-relationshipEventACL-module
 
 This module uses relationships intead of groups or ACL to limit visibility and editability. The whole relationship tree is searched and all events that are owned by contacts to where user has edit permissions through relationships are made visible and editable. All contact types are searched.
 
+This module filters search results rows on following pages:
+* Event Dashboard
+* Manage Events
+* Find contributions (for Event contributions)
+* Find participants
+* Contact Contributions tab
+* Contact Events tab
+
+It also prevents user from accessing following pages by direct URL without permissions:
+* Event edit page
+* Participant edit page
+* Contribution edit page
+
 This module requires a custom field to event that specifies event owner contact ID.
 
 Portions of this module is based on the idea of [Relationship Permissions as ACLs] (https://civicrm.org/extensions/relationship-permissions-acls) extension. This module includes code from [relationshipACL](https://github.com/anttikekki/civicrm-relationshipACL-module) module.
@@ -23,18 +36,6 @@ Events
 * Event 2. Owned by Sub-organisation 2.
 
 With this module User 1 can see and edit Event 2 but not Event 1. Event 2 is owned by Sub-organisation 2 that User 1 has edit rights. User 1 does not have edit rights to Organisation 1 so this event is invisible to user.
-
-### Current implementation status
-This module filters search results rows on following pages:
-* Event Dashboard
-* Manage Events
-* Find contributions (for Event contributions)
-* Find participants
-
-It also prevents user from accessing following pages by direct URL without permissions:
-* Event edit page
-* Participant edit page
-* Contribution edit page
 
 ### Installation
 1. Copy _com.github.anttikekki.relationshipEventACL_ folder to CiviCRM extension folder and enable extension in administration.
