@@ -68,6 +68,17 @@ function relationshipEventACL_civicrm_alterTemplateFile($formName, &$form, $cont
     $worker = new RelationshipEventACLWorker();
     $worker->contributionSearchAlterTemplateFileHook($form);
   }
+  //Contact Contributions tab
+  else if($form instanceof CRM_Contribute_Page_Tab) {
+    $worker = new RelationshipEventACLWorker();
+    $worker->contactContributionTabAlterTemplateFileHook($form);
+  }
+  //Contact Events tab
+  else if($form instanceof CRM_Event_Page_Tab) {
+    //print_r($object->getTemplate());
+    $worker = new RelationshipEventACLWorker();
+    $worker->contactEventTabAlterTemplateFileHook($form);
+  }
 }
 
 /**
@@ -80,27 +91,6 @@ function relationshipEventACL_civicrm_buildForm($formName, &$form) {
   if($form instanceof CRM_Event_Form_ManageEvent) {
     $worker = new RelationshipEventACLWorker();
     $worker->eventFormBuildFormHook($form);
-  }
-}
-
-/**
-* Implemets CiviCRM 'alterContent' hook.
-*
-* @param string $content previously generated content
-* @param string $context context of content - page or form
-* @param string $tplName the file name of the tpl
-* @param object $object a reference to the page or form object
-*/
-function relationshipEventACL_civicrm_alterContent(&$content, $context, $tplName, &$object) {
-  //Contact Contributions tab
-  if($object instanceof CRM_Contribute_Page_Tab) {
-    $worker = new RelationshipEventACLWorker();
-    $worker->contactContributionTabAlterContentHook($content);
-  }
-  //Contact Events tab
-  else if($object instanceof CRM_Event_Page_Tab) {
-    $worker = new RelationshipEventACLWorker();
-    $worker->contactEventTabAlterContentHook($content);
   }
 }
 
