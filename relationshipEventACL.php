@@ -77,10 +77,25 @@ function relationshipEventACL_civicrm_alterTemplateFile($formName, &$form, $cont
 * @param CRM_Core_Form $form Current form.
 */
 function relationshipEventACL_civicrm_buildForm($formName, &$form) {
-  //Edit Event form
   if($form instanceof CRM_Event_Form_ManageEvent) {
     $worker = new RelationshipEventACLWorker();
     $worker->eventFormBuildFormHook($form);
+  }
+}
+
+/**
+* Implemets CiviCRM 'alterContent' hook.
+*
+* @param string $content previously generated content
+* @param string $context context of content - page or form
+* @param string $tplName the file name of the tpl
+* @param object $object a reference to the page or form object
+*/
+function relationshipEventACL_civicrm_alterContent(&$content, $context, $tplName, &$object) {
+  //Contact Contributions tab
+  if($object instanceof CRM_Contribute_Page_Tab) {
+    $worker = new RelationshipEventACLWorker();
+    $worker->contactContributionTabAlterContentHook($content);
   }
 }
 

@@ -17,6 +17,10 @@ if(class_exists('CustomFieldHelper') === false) {
   require_once "CustomFieldHelper.php";
 }
 
+if(class_exists('phpQuery') === false) {
+  require_once('phpQuery.php');
+}
+
 
 /**
  * Worker to solve Event visibility and edit rights for user from relationship edit rights.
@@ -30,6 +34,20 @@ class RelationshipEventACLWorker {
   * @var string
   */
   protected $configKey_eventOwnerCustomGroupName = "eventOwnerCustomGroupName";
+  
+  /**
+  * Executed when Contact Contributions tab is built.
+  * Filters contribution rows based on Contribution page owner.
+  *
+  * Html manipulation is required because page data before rendering can not be manipulated with hooks. 
+  * Contact Contributions tab is class CRM_Contribute_Page_Tab that embeds instance of CRM_Contribute_Form_Search.
+  * This instance can not be accessed and modified so we need to modify the result.
+  *
+  * @param string $html Search contributions tab HTML
+  */
+  public function contactContributionTabAlterContentHook(&$html) {
+    $this->filterContactContributionTableHTMLRows($html);
+  }
   
   /**
   * Executed when Participant search form is built.
@@ -63,7 +81,7 @@ class RelationshipEventACLWorker {
   * @param CRM_Event_Page_ManageEvent $page Manage Events page
   */
   public function manageEventPageRunHook(&$page) {
-    $this->checkPagerRowCount();
+    $this->checkPagerRowCount(9999999);
     $this->filterManagementEventRows($page);
   }
   
@@ -190,6 +208,25 @@ class RelationshipEventACLWorker {
   }
   
   /**
+  * Executed when Contact Contributions tab is built.
+  * Filters contribution rows based on Contribution page owner.
+  *
+  * @param string $html Search contributions tab HTML
+  */
+  private function filterContactContributionTableHTMLRows(&$html) {
+    $doc = phpQuery::newDocumentHTML($html);
+    $contributionIds = $this->getContributionSearchFormHtmlTableContributionIds($doc);
+    $allowedContributionIds = $this->getAllowedContributionIds($contributionIds);
+    
+    //Remove rows that are not allowed to current logged in user
+    foreach ($allowedContributionIds as $contributionId) {
+      $doc->find("#Search tr.crm-contribution_" . $contributionId)->remove();
+    }
+    
+    $html = $doc->getDocument();
+  }
+  
+  /**
   * Iterates 'row' array from template and removes Contributions that belongs to Event that current logged in user does not have 
   * editing rights. Editing rights are based on relationship tree.
   *
@@ -206,12 +243,6 @@ class RelationshipEventACLWorker {
   
     $this->filterEventContributions($rows);
     $template->assign("rows", $rows);
-    
-    //Update row count info
-    $rowCount = count($rows);
-    $rowsEmpty = $rowCount ? FALSE : TRUE;
-    $template->assign("rowsEmpty", $rowsEmpty);
-    $template->assign("rowCount", $rowCount);
   }
   
   /**
@@ -220,7 +251,7 @@ class RelationshipEventACLWorker {
   *
   * @param array $rows Array of Contributions
   */
-  private function filterEventContributions(&$rows) {    
+  private function filterEventContributions(&$rows) {
     //If there are no contribution search results (this happens before search) do not continue
     if(!is_array($rows)) {
       return;
@@ -232,14 +263,31 @@ class RelationshipEventACLWorker {
       $contributionIds[] = $row["contribution_id"];
     }
     
+    $allowedContributionIds = $this->getAllowedContributionIds($contributionIds);
+    
+    foreach ($rows as $index => &$row) {
+      $contributionId = $row["contribution_id"];
+      
+      if(!in_array($contributionId, $allowedContributionIds)) {
+        unset($rows[$index]);
+      }
+    }
+  }
+  
+  /**
+  * Iterates array of Contribution ids and removes Contributions ids that belongs to Events where current logged in user does not have 
+  * editing rights. Editing rights are based on relationship tree.
+  *
+  * @param array $contributionIds Array of Contribution ids
+  * @return array Array of allowed Contribution ids
+  */
+  private function getAllowedContributionIds($contributionIds) {
     /*
     * Find Event ids for contributions. Uses civicrm_participant_payment table to link Contribution to Event.
     * Return value array key is Contribution id and value is Event id.
     * Returned array contains contribution ids only for Event participant contributions.
     */
     $contributionEventIds = $this->getContributionsEventIds($contributionIds);
-    //print_r($contributionIds);
-    //print_r($contributionEventIds);
     
     $currentUserContactID = $this->getCurrentUserContactID();
     
@@ -251,9 +299,7 @@ class RelationshipEventACLWorker {
     $customFieldWorker = new CustomFieldHelper($this->getEventOwnerCustomGroupNameFromConfig());
     $eventOwnerMap = $customFieldWorker->loadAllValues();
     
-    foreach ($rows as $index => &$row) {
-      $contributionId = $row["contribution_id"];
-      
+    foreach ($contributionIds as $index => &$contributionId) {
       /*
       * If contribution id is not found it means that contribution is from Contribution page. 
       * Contribution page Contributions are filtered by relationshipContributionACL module.
@@ -274,9 +320,11 @@ class RelationshipEventACLWorker {
       
       //If logged in user contact ID is not allowed to edit event, remove contribution from array
       if(!in_array($eventOwnerContactID, $allowedContactIDs)) {
-        unset($rows[$index]);
+        unset($contributionIds[$index]);
       }
     }
+    
+    return $contributionIds;
   }
   
   /**
@@ -405,12 +453,14 @@ class RelationshipEventACLWorker {
   * If not, do redirect to same page with crmRowCount paramer. crmRowCount is needed 
   * to remove pager so all rows are always visible. Pager is broken because this module 
   * filters rows after pager is constructed.
+  *
+  * @param int|string $pagerPageSize Pager page max row count
   */
-  private function checkPagerRowCount() {
+  private function checkPagerRowCount($pagerPageSize) {
     $currentURL = "http://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
     
     if(!isset($_GET["crmRowCount"])) {
-      CRM_Utils_System::redirect($currentURL . "&crmRowCount=9999999");
+      CRM_Utils_System::redirect($currentURL . "&crmRowCount=" . $pagerPageSize);
     }
   }
   
@@ -487,6 +537,10 @@ class RelationshipEventACLWorker {
   private function getContributionsEventIds($contributionIds) {
     //Remove values that are not numeric
     $contributionIds = array_filter($contributionIds, "is_numeric");
+    
+    if(count($contributionIds) == 0) {
+      return array();
+    }
   
     $sql = "
       SELECT contribution_id, participant_id  
@@ -529,6 +583,10 @@ class RelationshipEventACLWorker {
   * @return array Array where key is contribution id and value is Event id
   */
   private function getParticipantsEventIds($participantIdForContributionId) {
+    if(count($participantIdForContributionId) == 0) {
+      return array();
+    }
+  
     $sql = "
       SELECT id, event_id  
       FROM civicrm_participant
@@ -547,5 +605,29 @@ class RelationshipEventACLWorker {
     }
     
     return $participantIdForContributionId;
+  }
+  
+  /**
+  * Finds all Contribution ids from Search contributions HTML string. Ids are stored in 
+  * class name "crm-contribution_123".
+  *
+  * @param phpQuery $doc phpQuery instance holding HTML content
+  * @return array Array of rows -contribution ids
+  */
+  private function getContributionSearchFormHtmlTableContributionIds($doc) {
+    $contributionIds = array();
+    foreach ($doc->find("#Search tr") as $tr) {
+      $class = pq($tr)->attr('class');
+      
+      $startIndex = strrpos($class, "crm-contribution_");
+      if($startIndex == 0) {
+        continue;
+      }
+      
+      $startIndex += 17; //Length of "crm-contribution_"
+      $contributionIds[] = (int) substr($class, $startIndex);
+    }
+    
+    return $contributionIds;
   }
 }
