@@ -54,6 +54,20 @@ class RelationshipEventACLWorker {
   }
   
   /**
+  * Executed when Contact Events tab is built.
+  * Filters Event rows based on Event owner.
+  *
+  * Html manipulation is required because page data before rendering can not be manipulated with hooks. 
+  * Contact Events tab is class CRM_Event_Page_Tab that embeds instance of CRM_Event_Form_Search.
+  * This instance can not be accessed and modified so we need to modify the result.
+  *
+  * @param string $html Search events tab HTML
+  */
+  public function contactEventTabAlterContentHook(&$html) {
+    $this->filterContactEventTableHTMLRows($html);
+  }
+  
+  /**
   * Executed when Participant search form is built.
   * Filters participant rows based on permissions. Disables pager.
   *
@@ -236,6 +250,27 @@ class RelationshipEventACLWorker {
   }
   
   /**
+  * Executed when Contact Events tab is built.
+  * Filters Event rows based on Event owner.
+  *
+  * @param string $html Search events tab HTML
+  */
+  private function filterContactEventTableHTMLRows(&$html) {
+    $doc = phpQuery::newDocumentHTML($html);
+    $eventIds = $this->getEventSearchFormHtmlTableEventIds($doc);
+    $allowedEventIds = $this->getAllowedEventIds($eventIds);
+    
+    //Remove Event rows that are not allowed to current logged in user
+    foreach ($eventIds as $eventId) {
+      if(!in_array($eventId, $allowedEventIds)) {
+        $doc->find("#Search tr.crm-event_" . $eventId)->remove();
+      }
+    }
+    
+    $html = $doc->getDocument();
+  }
+  
+  /**
   * Iterates 'row' array from template and removes Contributions that belongs to Event that current logged in user does not have 
   * editing rights. Editing rights are based on relationship tree.
   *
@@ -388,40 +423,24 @@ class RelationshipEventACLWorker {
       return;
     }
     
-    $currentUserContactID = $this->getCurrentUserContactID();
+    //Find all event ids
+    $eventIds = array();
+    foreach ($rows as $eventId => &$row) {
+      $eventIds[] = (int) $row["event_id"];
+    }
     
-    //All contact IDs the current logged in user has rights to edit through relationships
-    $worker = RelationshipACLQueryWorker::getInstance();
-    $allowedContactIDs = $worker->getContactIDsWithEditPermissions($currentUserContactID);
-    
-    //Array with event ID as key and event owner contact ID as value
-    $worker = new CustomFieldHelper($this->getEventOwnerCustomGroupNameFromConfig());
-    $eventOwnerMap = $worker->loadAllValues();
+    $allowedEventIds = $this->getAllowedEventIds($eventIds);
     
     foreach ($rows as $index => &$row) {
-      $eventID = $row["event_id"];
-    
-      //Skip events that does not have owner info. These are always visible.
-      if(!array_key_exists($eventID, $eventOwnerMap)) {
-        continue;
-      }
+      $eventID = (int) $row["event_id"];
       
-      //Get event owner contact ID from custom field
-      $eventOwnerContactID = $eventOwnerMap[$eventID];
-      
-      //If logged in user contact ID is not allowed to edit event, remove event from array
-      if(!in_array($eventOwnerContactID, $allowedContactIDs)) {
+      //If logged in user is not allowed to edit event, remove event from array
+      if(!in_array($eventId, $allowedEventIds)) {
         unset($rows[$index]);
       }
     }
     
     $template->assign("rows", $rows);
-    
-    //Update row count info
-    $rowCount = count($rows);
-    $rowsEmpty = $rowCount ? FALSE : TRUE;
-    $template->assign("rowsEmpty", $rowsEmpty);
-    $template->assign("rowCount", $rowCount);
   }
   
   /**
@@ -430,7 +449,31 @@ class RelationshipEventACLWorker {
   *
   * @param array $rows Array of events
   */
-  private function filterEventRows(&$rows) {
+  private function filterEventRows(&$rows) {    
+    //Find all event ids
+    $eventIds = array();
+    foreach ($rows as $eventId => &$row) {
+      $eventIds[] = (int) $eventId;
+    }
+    
+    $allowedEventIds = $this->getAllowedEventIds($eventIds);
+    
+    foreach ($eventIds as $index => $eventId) {
+      //If logged in user is not allowed to edit event, remove event from array
+      if(!in_array($eventId, $allowedEventIds)) {
+        unset($rows[$eventId]);
+      }
+    }
+  }
+  
+  /**
+  * Iterates Event id array and removes Event ids where current logged in user does not have 
+  * editing rights. Editing rights are based on relationship tree.
+  *
+  * @param array $eventIds Array of event ids
+  * @return array Array of allowed event ids
+  */
+  private function getAllowedEventIds($eventIds) {
     $currentUserContactID = $this->getCurrentUserContactID();
     
     //All contact IDs the current logged in user has rights to edit through relationships
@@ -441,20 +484,22 @@ class RelationshipEventACLWorker {
     $worker = new CustomFieldHelper($this->getEventOwnerCustomGroupNameFromConfig());
     $eventOwnerMap = $worker->loadAllValues();
     
-    foreach ($rows as $eventID => &$row) {
+    foreach ($eventIds as $index => &$eventId) {
       //Skip events that does not have owner info. These are always visible.
-      if(!array_key_exists($eventID, $eventOwnerMap)) {
+      if(!array_key_exists($eventId, $eventOwnerMap)) {
         continue;
       }
       
       //Get event owner contact ID from custom field
-      $eventOwnerContactID = $eventOwnerMap[$eventID];
+      $eventOwnerContactID = $eventOwnerMap[$eventId];
       
       //If logged in user contact ID is not allowed to edit event, remove event from array
       if(!in_array($eventOwnerContactID, $allowedContactIDs)) {
-        unset($rows[$eventID]);
+        unset($eventIds[$index]);
       }
     }
+    
+    return $eventIds;
   }
   
   /**
@@ -617,11 +662,11 @@ class RelationshipEventACLWorker {
   }
   
   /**
-  * Finds all Contribution ids from Search contributions HTML string. Ids are stored in 
+  * Finds all Contribution ids from Search contributions page HTML string. Ids are stored in 
   * class name "crm-contribution_123".
   *
   * @param phpQuery $doc phpQuery instance holding HTML content
-  * @return array Array of rows -contribution ids
+  * @return array Array of rows contribution ids
   */
   private function getContributionSearchFormHtmlTableContributionIds($doc) {
     $contributionIds = array();
@@ -633,10 +678,34 @@ class RelationshipEventACLWorker {
         continue;
       }
       
-      $startIndex += 17; //Length of "crm-contribution_"
+      $startIndex += strlen("crm-contribution_");
       $contributionIds[] = (int) substr($class, $startIndex);
     }
     
     return $contributionIds;
+  }
+  
+  /**
+  * Finds all Event ids from Search events page HTML string. Ids are stored in 
+  * class name "crm-event_123".
+  *
+  * @param phpQuery $doc phpQuery instance holding HTML content
+  * @return array Array of rows event ids
+  */
+  private function getEventSearchFormHtmlTableEventIds($doc) {
+    $eventIds = array();
+    foreach ($doc->find("#Search tr") as $tr) {
+      $class = pq($tr)->attr('class');
+      
+      $startIndex = strrpos($class, "crm-event_");
+      if($startIndex == 0) {
+        continue;
+      }
+      
+      $startIndex += strlen("crm-event_");
+      $eventIds[] = (int) substr($class, $startIndex);
+    }
+    
+    return $eventIds;
   }
 }

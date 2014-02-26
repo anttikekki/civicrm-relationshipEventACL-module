@@ -97,6 +97,11 @@ function relationshipEventACL_civicrm_alterContent(&$content, $context, $tplName
     $worker = new RelationshipEventACLWorker();
     $worker->contactContributionTabAlterContentHook($content);
   }
+  //Contact Events tab
+  else if($object instanceof CRM_Event_Page_Tab) {
+    $worker = new RelationshipEventACLWorker();
+    $worker->contactEventTabAlterContentHook($content);
+  }
 }
 
 /**
