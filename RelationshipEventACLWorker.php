@@ -32,6 +32,16 @@ class RelationshipEventACLWorker {
   protected $configKey_eventOwnerCustomGroupName = "eventOwnerCustomGroupName";
   
   /**
+  * Executed when Contributions Dashboard is built.
+  * Filters Event contribution rows based on Event owner.
+  *
+  * @param CRM_Contribute_Page_DashBoard $form Contribution Dashboard
+  */
+  public function contributionDashboardAlterTemplateHook(&$form) {
+    $this->filterEventContributionsSearchFormResults($form);
+  }
+  
+  /**
   * Executed when Contact Contribution tab is built.
   * Filters Contributions rows based on permissions.
   *
