@@ -448,7 +448,7 @@ class RelationshipEventACLWorker {
     $allowedEventIds = $this->getAllowedEventIds($eventIds);
     
     foreach ($rows as $index => &$row) {
-      $eventID = (int) $row["event_id"];
+      $eventId = (int) $row["event_id"];
       
       //If logged in user is not allowed to edit event, remove event from array
       if(!in_array($eventId, $allowedEventIds)) {
