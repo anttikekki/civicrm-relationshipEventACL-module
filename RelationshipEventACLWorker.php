@@ -393,6 +393,10 @@ class RelationshipEventACLWorker {
   private function filterContactTabEventRows(&$page) {
     $template = $page->getTemplate();
     $rows = $template->get_template_vars("rows");
+    
+    if(!is_array($rows)) {
+      return;
+    }
   
     //Find all event ids
     $eventIds = array();

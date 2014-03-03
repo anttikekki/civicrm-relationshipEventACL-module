@@ -75,7 +75,6 @@ function relationshipEventACL_civicrm_alterTemplateFile($formName, &$form, $cont
   }
   //Contact Events tab
   else if($form instanceof CRM_Event_Page_Tab) {
-    //print_r($object->getTemplate());
     $worker = new RelationshipEventACLWorker();
     $worker->contactEventTabAlterTemplateFileHook($form);
   }
