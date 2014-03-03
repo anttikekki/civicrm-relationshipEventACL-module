@@ -95,6 +95,7 @@ class RelationshipEventACLWorker {
   */
   public function dashboardPageRunHook(&$page) {
     $this->filterDashBoardEventRows($page);
+    $this->filterParticipants($page);
   }
   
   /**
