@@ -9,9 +9,12 @@ This module filters search results rows on following pages:
 * Event Dashboard
 * Manage Events
 * Find contributions (for Event contributions)
+* Contribution dashboard (for Event contribution)
 * Find participants
 * Contact Contributions tab
 * Contact Events tab
+* Contact Actvity tab (for Event participations)
+* Event reports critera and results
 
 It also prevents user from accessing following pages by direct URL without permissions:
 * Event edit page
