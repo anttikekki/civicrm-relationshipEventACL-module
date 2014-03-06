@@ -631,6 +631,9 @@ class RelationshipEventACLWorker {
     else if(isset($reportform["event_id_value"])) {
       $fieldName = "event_id_value";
     }
+    else {
+      return;
+    }
     
     $doc = phpQuery::newDocumentHTML($reportform[$fieldName]['html']);
     
