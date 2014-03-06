@@ -17,6 +17,14 @@ if(class_exists('CustomFieldHelper') === false) {
   require_once "CustomFieldHelper.php";
 }
 
+/**
+* Only import phpQuery if it is not already loaded. Multiple imports can happen
+* because relationshipEvenACL module uses same phpQuery. 
+*/
+if(class_exists('phpQuery') === false) {
+  require_once "phpQuery.php";
+}
+
 
 /**
  * Worker to solve Event visibility and edit rights for user from relationship edit rights.
@@ -30,6 +38,16 @@ class RelationshipEventACLWorker {
   * @var string
   */
   protected $configKey_eventOwnerCustomGroupName = "eventOwnerCustomGroupName";
+  
+  /**
+  * Executed when any Event Report is displayed
+  *
+  * @param CRM_Report_Form_Event $form Event Report
+  */
+  public function eventReportsAlterTemplateHook(&$form) {
+    $this->filterEventReportCriteriaEvents($form);
+    $this->filterEventReportResultRows($form);
+  }
   
   /**
   * Executed when Contributions Dashboard is built.
@@ -218,54 +236,6 @@ class RelationshipEventACLWorker {
     if(count($rows) === 0) {
       CRM_Core_Error::fatal(ts('You do not have permission to view this contribution'));
     }
-  }
-  
-  /**
-  * Executed when Contact Contributions tab is built.
-  * Filters contribution rows based on Contribution page owner.
-  *
-  * @param string $html Search contributions tab HTML
-  */
-  private function filterContactContributionTableHTMLRows(&$html) {
-    $template = $form->getTemplate();
-    $rows = $template->get_template_vars("rows");
-  
-    $doc = phpQuery::newDocumentHTML($html);
-    $contributionIds = $this->getContributionSearchFormHtmlTableContributionIds($doc);
-    $allowedEventContributionIds = $this->getAllowedEventContributionIds($contributionIds);
-    
-    /* 
-    * Remove Event contribution rows that are not allowed to current logged in user.
-    * Contribution page contributions are filtered by relationshipContributionACL module.
-    */
-    foreach ($contributionIds as $contributionId) {
-      if(!in_array($contributionId, $allowedEventContributionIds)) {
-        $doc->find("#Search tr.crm-contribution_" . $contributionId)->remove();
-      }
-    }
-    
-    $html = $doc->getDocument();
-  }
-  
-  /**
-  * Executed when Contact Events tab is built.
-  * Filters Event rows based on Event owner.
-  *
-  * @param string $html Search events tab HTML
-  */
-  private function filterContactEventTableHTMLRows(&$html) {
-    $doc = phpQuery::newDocumentHTML($html);
-    $eventIds = $this->getEventSearchFormHtmlTableEventIds($doc);
-    $allowedEventIds = $this->getAllowedEventIds($eventIds);
-    
-    //Remove Event rows that are not allowed to current logged in user
-    foreach ($eventIds as $eventId) {
-      if(!in_array($eventId, $allowedEventIds)) {
-        $doc->find("#Search tr.crm-event_" . $eventId)->remove();
-      }
-    }
-    
-    $html = $doc->getDocument();
   }
   
   /**
@@ -639,7 +609,160 @@ class RelationshipEventACLWorker {
       $participantIdForContributionId[$dao->contribution_id] = $dao->participant_id;
     }
     
-    return $this->getParticipantsEventIds($participantIdForContributionId);
+    return $this->getContributionParticipantsEventIds($participantIdForContributionId);
+  }
+  
+  /**
+  * Filter Event Reports event selection criteria.
+  * Modification has to done to html to get it to work. Editing filters-array 
+  * in template variables has no effects becayse html for select has already 
+  * been generated.
+  *
+  * @param CRM_Report_Form_Event $form Event Report
+  */
+  private function filterEventReportCriteriaEvents(&$form) {
+    $template = $form->getTemplate();
+    $reportform = $template->get_template_vars("form");
+    
+    $fieldName;
+    if(isset($reportform["id_value"])) {
+      $fieldName = "id_value";
+    }
+    else if(isset($reportform["event_id_value"])) {
+      $fieldName = "event_id_value";
+    }
+    
+    $doc = phpQuery::newDocumentHTML($reportform[$fieldName]['html']);
+    
+    //Find all event ids
+    $eventIds = array();
+    foreach ($doc->find("option") as $selectOption) {
+      $eventIds[] = (int) pq($selectOption)->val();
+    }
+
+    $allowedEventIds = $this->getAllowedEventIds($eventIds);
+    
+    foreach ($doc->find("option") as $selectOption) {
+      $eventId = (int) pq($selectOption)->val();
+      if(!in_array($eventId, $allowedEventIds)) {
+        pq($selectOption)->remove();
+      }
+    }
+    
+    $reportform[$fieldName]['html'] = $doc->getDocument();
+    $template->assign("form", $reportform);
+  }
+  
+  /**
+  * Filter Event Reports result data
+  *
+  * @param CRM_Report_Form_Event $form Event Report
+  */
+  private function filterEventReportResultRows(&$form) {
+    if($form instanceof CRM_Report_Form_Event_Income) {
+      $this->filterEventIncomeDetailsReportResultRows($form);
+    }
+    else if($form instanceof CRM_Report_Form_Event_Summary) {
+      $this->filterEventSummaryReportResultRows($form);
+    }
+    else if($form instanceof CRM_Report_Form_Event_ParticipantListing) {
+      $this->filterEventParticipantListingReportResultRows($form);
+    }
+  }
+  
+  /**
+  * Filter Event Income Details report data
+  *
+  * @param CRM_Report_Form_Event_Income $form Event Income Details report
+  */
+  private function filterEventIncomeDetailsReportResultRows(&$form) {
+    $template = $form->getTemplate();
+    $summary = $template->get_template_vars("summary");
+    $rows = $template->get_template_vars("rows");
+    
+    //Find all event ids
+    $eventIds = array();
+    foreach ($summary as $eventId => &$summaryRow) {
+      $eventIds[] = $eventId;
+    }
+    
+    $allowedEventIds = $this->getAllowedEventIds($eventIds);
+    
+    foreach ($summary as $eventId => &$summaryRow) {
+      if(!in_array($eventId, $allowedEventIds)) {
+        //Summary row
+        unset($summary[$eventId]);
+        
+        //Role breakdown
+        if(isset($rows["Role"]) && isset($rows["Role"][$eventId])) {
+          unset($rows["Role"][$eventId]);
+        }
+        
+         //Status breakdown
+        if(isset($rows["Status"]) && isset($rows["Status"][$eventId])) {
+          unset($rows["Status"][$eventId]);
+        }
+      }
+    }
+    
+    $template->assign("summary", $summary);
+    $template->assign("rows", $rows);
+  }
+  
+  /**
+  * Filter Event Summary report data
+  *
+  * @param CRM_Report_Form_Event_Summary $form Event Summary report
+  */
+  private function filterEventSummaryReportResultRows(&$form) {
+    $template = $form->getTemplate();
+    $rows = $template->get_template_vars("rows");
+    
+    //Find all event ids
+    $eventIds = array();
+    foreach ($rows as $index => &$row) {
+      $eventIds[] = (int) $row["civicrm_event_id"];
+    }
+
+    $allowedEventIds = $this->getAllowedEventIds($eventIds);
+    
+    foreach ($rows as $index => &$row) {
+      $eventId = (int) $row["civicrm_event_id"];
+      
+      if(!in_array($eventId, $allowedEventIds)) {
+        unset($rows[$index]);
+      }
+    }
+    $template->assign("rows", $rows);
+  }
+  
+  /**
+  * Filter Event Participant Listing report data
+  *
+  * @param CRM_Report_Form_Event_ParticipantListing $form Event Participant Listing  report
+  */
+  private function filterEventParticipantListingReportResultRows(&$form) {
+    $template = $form->getTemplate();
+    $rows = $template->get_template_vars("rows");
+    
+    //Find all participant ids
+    $participantIds = array();
+    foreach ($rows as $index => &$row) {
+      $participantIds[] = (int) $row["civicrm_participant_participant_record"];
+    }
+    
+    $eventIdForParticipantId = $this->getParticipantsEventIds($participantIds);
+    $allowedEventIds = $this->getAllowedEventIds(array_values($eventIdForParticipantId));
+    
+    foreach ($rows as $index => &$row) {
+      $participantId = (int) $row["civicrm_participant_participant_record"];
+      $eventId = $eventIdForParticipantId[$participantId];
+      
+      if(!in_array($eventId, $allowedEventIds)) {
+        unset($rows[$index]);
+      }
+    }
+    $template->assign("rows", $rows);
   }
   
   /**
@@ -666,7 +789,7 @@ class RelationshipEventACLWorker {
   * @param array $participantIdForContributionId Array where key is contribution id and value is Participant id
   * @return array Array where key is contribution id and value is Event id
   */
-  private function getParticipantsEventIds($participantIdForContributionId) {
+  private function getContributionParticipantsEventIds($participantIdForContributionId) {
     if(count($participantIdForContributionId) == 0) {
       return array();
     }
@@ -689,5 +812,32 @@ class RelationshipEventACLWorker {
     }
     
     return $participantIdForContributionId;
+  }
+  
+  /**
+  * Find event id for Event participations.
+  *
+  * @param array $participantIds Participant ids
+  * @return array Array where key is participant id and value is Event id
+  */
+  private function getParticipantsEventIds($participantIds) {
+    if(count($participantIds) == 0) {
+      return array();
+    }
+  
+    $sql = "
+      SELECT id, event_id  
+      FROM civicrm_participant
+      WHERE id IN (". implode(",", $participantIds) .")
+    ";
+    
+    $dao = CRM_Core_DAO::executeQuery($sql);
+    
+    $result = array();
+    while ($dao->fetch()) {
+      $result[$dao->id] = $dao->event_id;
+    }
+    
+    return $result;
   }
 }
