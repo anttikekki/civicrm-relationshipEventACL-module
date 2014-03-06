@@ -70,6 +70,24 @@ class RelationshipEventACLWorker {
   }
   
   /**
+  * Executed when Contact main page is built.
+  *
+  * @param CRM_Contact_Page_View_Summary $form Contact main page
+  */
+  public function contactMainPageAlterTemplateFileHook(&$form) {
+    CRM_Core_Resources::singleton()->addScriptFile('com.github.anttikekki.relationshipEventACL', 'contactActivityTabEventFiltering.js');
+    
+    //Add array of Contact participation events to be used in Activity tab data filtering
+    $contactId = (int) $form->getTemplate()->get_template_vars("contactId");
+    $eventIdForParticipantId = $this->getParticipantsEventIdsForContact($contactId);
+    CRM_Core_Resources::singleton()->addSetting(array('relationshipEventACL' => array('eventIdForParticipantId' => json_encode($eventIdForParticipantId))));
+    
+    //Add array of allowed Event ids to be used in Activity tab data filtering
+    $allowedEventIds = $this->getAllowedEventIds();
+    CRM_Core_Resources::singleton()->addSetting(array('relationshipEventACL' => array('allowedEventIds' => $allowedEventIds)));
+  }
+  
+  /**
   * Executed when Contact Event tab is built.
   * Filters Event rows based on permissions.
   *
@@ -470,10 +488,11 @@ class RelationshipEventACLWorker {
   * Iterates Event id array and removes Event ids where current logged in user does not have 
   * editing rights. Editing rights are based on relationship tree.
   *
-  * @param array $eventIds Array of event ids
+  * @param array $eventIds Array of event ids. If NULL or missing, this method returns all event ids that user has 
+  * permission to edit.
   * @return array Array of allowed event ids
   */
-  private function getAllowedEventIds($eventIds) {
+  private function getAllowedEventIds($eventIds = NULL) {
     $currentUserContactID = $this->getCurrentUserContactID();
     
     //All contact IDs the current logged in user has rights to edit through relationships
@@ -483,6 +502,21 @@ class RelationshipEventACLWorker {
     //Array with event ID as key and event owner contact ID as value
     $worker = new CustomFieldHelper($this->getEventOwnerCustomGroupNameFromConfig());
     $eventOwnerMap = $worker->loadAllValues();
+    
+    //If set of events is not specified, load all event ids
+    if(!isset($eventIds)) {
+      $sql = "
+        SELECT id  
+        FROM civicrm_event
+      ";
+      
+      $dao = CRM_Core_DAO::executeQuery($sql);
+      
+      $eventIds = array();
+      while ($dao->fetch()) {
+        $eventIds[] = $dao->id;
+      }
+    }
     
     foreach ($eventIds as $index => &$eventId) {
       //Skip events that does not have owner info. These are always visible.
@@ -832,6 +866,31 @@ class RelationshipEventACLWorker {
       SELECT id, event_id  
       FROM civicrm_participant
       WHERE id IN (". implode(",", $participantIds) .")
+    ";
+    
+    $dao = CRM_Core_DAO::executeQuery($sql);
+    
+    $result = array();
+    while ($dao->fetch()) {
+      $result[$dao->id] = $dao->event_id;
+    }
+    
+    return $result;
+  }
+  
+  /**
+  * Find event id for Event participations for contact.
+  *
+  * @param int|string $contactId Contact id
+  * @return array Array where key is participant id and value is Event id
+  */
+  private function getParticipantsEventIdsForContact($contactId) {
+    $contactId = (int) $contactId;
+  
+    $sql = "
+      SELECT id, event_id  
+      FROM civicrm_participant
+      WHERE contact_id = $contactId
     ";
     
     $dao = CRM_Core_DAO::executeQuery($sql);

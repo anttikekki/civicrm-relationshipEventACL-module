@@ -78,6 +78,11 @@ function relationshipEventACL_civicrm_alterTemplateFile($formName, &$form, $cont
     $worker = new RelationshipEventACLWorker();
     $worker->contactEventTabAlterTemplateFileHook($form);
   }
+  //Contact main page
+  else if($form instanceof CRM_Contact_Page_View_Summary) {
+    $worker = new RelationshipEventACLWorker();
+    $worker->contactMainPageAlterTemplateFileHook($form);
+  }
   //Contribution dashboard
   else if($form instanceof CRM_Contribute_Page_DashBoard) {
     $worker = new RelationshipEventACLWorker();
