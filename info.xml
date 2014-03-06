@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <extension key="com.github.anttikekki.relationshipEventACL" type="module">
-  <downloadUrl>https://github.com/anttikekki/civicrm-relationshipEventACL-module/archive/1.5.zip</downloadUrl>
+  <downloadUrl>https://github.com/anttikekki/civicrm-relationshipEventACL-module/archive/1.6.zip</downloadUrl>
   <file>relationshipEventACL</file>
   <name>Relationship Event ACL Module</name>
   <description>Adds contact relationship edit permissions to ACL check. Makes allowed events and participants visible and editable only to user that has permission to do so.</description>
@@ -15,8 +15,8 @@
     <author>Antti Kekki</author>
     <email>anttikekki@gmail.com</email>
   </maintainer>
-  <releaseDate>2014-02-27</releaseDate>
-  <version>1.5</version>
+  <releaseDate>2014-03-06</releaseDate>
+  <version>1.6</version>
   <develStage>stable</develStage>
   <compatibility>
     <ver>4.4</ver>
