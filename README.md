@@ -19,7 +19,7 @@ This module filters search results rows on following pages:
 It also prevents user from accessing following pages by direct URL without permissions:
 * Event edit page
 * Participant edit page
-* Contribution edit page
+* Contribution edit page (for Event contributions)
 
 This module requires a custom field to event that specifies event owner contact ID.
 
