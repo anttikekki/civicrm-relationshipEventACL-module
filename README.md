@@ -15,6 +15,7 @@ This module filters search results rows on following pages:
 * Contact Events tab
 * Contact Actvity tab (for Event participations)
 * Event reports critera and results
+* Contribution reports results (for Event contributions)
 
 It also prevents user from accessing following pages by direct URL without permissions:
 * Event edit page
