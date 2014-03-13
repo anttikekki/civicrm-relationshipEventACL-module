@@ -93,6 +93,11 @@ function relationshipEventACL_civicrm_alterTemplateFile($formName, &$form, $cont
     $worker = new RelationshipEventACLWorker();
     $worker->eventReportsAlterTemplateHook($form);
   }
+  //Contribution reports (Event contribution filtering)
+  else if(RelationshipEventACLWorker::isContributionReportClassName($formName)) {
+    $worker = new RelationshipEventACLWorker();
+    $worker->contributionReportsAlterTemplateHook($form);
+  }
 }
 
 /**

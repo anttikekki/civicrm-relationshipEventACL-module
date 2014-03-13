@@ -34,10 +34,17 @@ class RelationshipEventACLWorker {
   /**
   * Config key for civicrm_relationshipeventacl_config table. This key 
   * stores name of Event Custom field group that stores event owner contact id.
-  *
-  * @var string
   */
-  protected $configKey_eventOwnerCustomGroupName = "eventOwnerCustomGroupName";
+  const CONFIG_KEY_EVENT_OWNER_CUSTOMGROUP_NAME = "eventOwnerCustomGroupName";
+  
+  /**
+  * Executed when any Contribution Report is displayed
+  *
+  * @param CRM_Report_Form $form COntribution Report
+  */
+  public function contributionReportsAlterTemplateHook(&$form) {
+    $this->filterContributionReportResultRows($form);
+  }
   
   /**
   * Executed when any Event Report is displayed
@@ -582,7 +589,7 @@ class RelationshipEventACLWorker {
     $sql = "
       SELECT config_value  
       FROM civicrm_relationshipeventacl_config
-      WHERE config_key = '".$this->configKey_eventOwnerCustomGroupName."'
+      WHERE config_key = '".RelationshipEventACLWorker::CONFIG_KEY_EVENT_OWNER_CUSTOMGROUP_NAME."'
     ";
     
     $customGroupName = CRM_Core_DAO::singleValueQuery($sql);
@@ -649,7 +656,7 @@ class RelationshipEventACLWorker {
   /**
   * Filter Event Reports event selection criteria.
   * Modification has to done to html to get it to work. Editing filters-array 
-  * in template variables has no effects becayse html for select has already 
+  * in template variables has no effects because html for select has already 
   * been generated.
   *
   * @param CRM_Report_Form_Event $form Event Report
@@ -901,5 +908,84 @@ class RelationshipEventACLWorker {
     }
     
     return $result;
+  }
+  
+  /**
+  * Filter Contribution Reports result data
+  *
+  * @param CRM_Report_Form $form Contribution Report
+  */
+  private function filterContributionReportResultRows(&$form) {
+    if($form instanceof CRM_Report_Form_Contribute_Detail) {
+      $this->filterContributionDetailsReportResultRows($form);
+    }
+    else if($form instanceof CRM_Report_Form_Contribute_Bookkeeping) {
+      $this->filterContributionBokkeepingReportResultRows($form);
+    }
+  }
+  
+  /**
+  * Filter Contribution Details Report result data Event contributions
+  *
+  * @param CRM_Report_Form_Contribute_Detail $form Contribution Details Report
+  */
+  private function filterContributionDetailsReportResultRows(&$form) {
+    $template = $form->getTemplate();
+    $rows = $template->get_template_vars("rows");
+    
+    //Find all Contribution ids
+    $contributionIds = array();
+    foreach ($rows as $index => &$row) {
+      $contributionIds[] = (int) $row["civicrm_contribution_contribution_id"];
+    }
+
+    $allowedContributionIds = $this->getAllowedEventContributionIds($contributionIds);
+    
+    foreach ($rows as $index => &$row) {
+      $contributionId = (int) $row["civicrm_contribution_contribution_id"];
+      
+      if(!in_array($contributionId, $allowedContributionIds)) {
+        unset($rows[$index]);
+      }
+    }
+    $template->assign("rows", $rows);
+  }
+  
+  /**
+  * Filter Contribution Bookkeeping Report result data Event contributions
+  *
+  * @param CRM_Report_Form_Contribute_Bookkeeping $form Contribution Bookkeeping Report
+  */
+  private function filterContributionBokkeepingReportResultRows(&$form) {
+    $template = $form->getTemplate();
+    $rows = $template->get_template_vars("rows");
+    
+    //Find all Contribution ids
+    $contributionIds = array();
+    foreach ($rows as $index => &$row) {
+      $contributionIds[] = (int) $row["civicrm_contribution_id"];
+    }
+
+    $allowedContributionIds = $this->getAllowedEventContributionIds($contributionIds);
+    
+    foreach ($rows as $index => &$row) {
+      $contributionId = (int) $row["civicrm_contribution_id"];
+      
+      if(!in_array($contributionId, $allowedContributionIds)) {
+        unset($rows[$index]);
+      }
+    }
+    $template->assign("rows", $rows);
+  }
+  
+  /**
+  * Is given class name a Contribution Report class name?
+  *
+  * @param string $formName Class name
+  * @return boolean True if given class name is a Contribution report
+  */
+  public static function isContributionReportClassName($formName) {
+    $reportClassNames = array('CRM_Report_Form_Contribute_Detail', 'CRM_Report_Form_Contribute_Bookkeeping');
+    return in_array($formName, $reportClassNames);
   }
 }
