@@ -5,10 +5,10 @@
   <name>Relationship Event ACL Module</name>
   <description>Adds contact relationship edit permissions to ACL check. Makes allowed events and participants visible and editable only to user that has permission to do so.</description>
   <urls>
-    <url desc="Main Extension Page">https://github.com/anttikekki/civicrm-relationshipACL-module</url>
-    <url desc="Documentation">https://github.com/anttikekki/civicrm-relationshipACL-module</url>
-    <url desc="Support">https://github.com/anttikekki/civicrm-relationshipACL-module</url>
-    <url desc="Licensing">https://github.com/anttikekki/civicrm-relationshipACL-module/blob/master/LICENSE</url>
+    <url desc="Main Extension Page">https://github.com/anttikekki/civicrm-relationshipEventACL-module</url>
+    <url desc="Documentation">https://github.com/anttikekki/civicrm-relationshipEventACL-module</url>
+    <url desc="Support">https://github.com/anttikekki/civicrm-relationshipEventACL-module</url>
+    <url desc="Licensing">https://github.com/anttikekki/civicrm-relationshipEventACL-module/blob/master/LICENSE</url>
   </urls>
   <license>GNU Affero General Public License</license>
   <maintainer>
