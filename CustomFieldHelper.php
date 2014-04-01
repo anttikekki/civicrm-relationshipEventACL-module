@@ -3,15 +3,21 @@
 /**
 * Helper for working with Custom fields.
 *
-* @version 1.0
+* @version 1.1
 */
 class CustomFieldHelper {
+
   /**
-  * Custom group title name. Table name and column name are queried based on this value.
+  * Version of this worker
+  */
+  const VERSION = "1.1";
+  
+  /**
+  * Custom field id. Table name and column name are queried based on this value.
   *
   * @var string
   */
-  protected $_customGroupTitle;
+  protected $_customFieldId;
   
   /**
   * Custom field table name.
@@ -30,65 +36,62 @@ class CustomFieldHelper {
   /**
   * Creates new worker.
   *
-  * @param string $customGroupTitle Title name of Custon group for what this helper is used for.
+  * @param int $customFieldId Id of Custon field for what this helper is used for.
   */
-  public function __construct($customGroupTitle) {
-    $this->_customGroupTitle = $customGroupTitle;
+  public function __construct($customFieldId) {
+    $this->_customFieldId = $customFieldId;
     $this->initCustomFieldInfo();
   }
   
   /**
-  * Finds Custom field table and column names based on Column group title.
+  * Finds Custom field table and column names based on Custom field id.
   */
   protected function initCustomFieldInfo() {
-    $result = $this->getCustomGroupIdAndTableForTitle($this->_customGroupTitle);
-    $this->_tableName = $result["table_name"];
-    $this->_columnName = $this->getCustomFieldColumnForGroupId($result["id"]);
+    $this->_tableName = $this->getCustomGroupTableForCustomGroupId($this->_customFieldId);
+    $this->_columnName = $this->getCustomFieldColumnForId($this->_customFieldId);
   }
   
   /**
-  * Finds Custom group id and table name for title name.
-  * Throws CiviCRM fatal error if Custom group cannot be found with given title.
+  * Finds Custom group table name for Custom Field Id.
+  * Throws CiviCRM fatal error if Custom group cannot be found with given Custom field id.
   *
-  * @param string $title Custom group title
-  * @return array Array with 'id' and 'table_name' keys
+  * @param string|int $customFieldId Custom field id
+  * @return string Custom field value table name
   */
-  public function getCustomGroupIdAndTableForTitle($title='') {
+  public function getCustomGroupTableForCustomGroupId($customFieldId) {
+    $customFieldId = (int) $customFieldId;
+    
     $sql = "
-      SELECT id, table_name
-      FROM civicrm_custom_group
-      WHERE title = %1
+      SELECT civicrm_custom_group.table_name
+      FROM civicrm_custom_field
+      LEFT JOIN civicrm_custom_group ON (civicrm_custom_group.id = civicrm_custom_field.custom_group_id)
+      WHERE civicrm_custom_field.id = $customFieldId
     ";
     
-    $params = array(1  => array($title, 'String'));
-    $dao = CRM_Core_DAO::executeQuery($sql, $params);
+    $table_name = CRM_Core_DAO::singleValueQuery($sql);
     
-    if($dao->fetch()) {
-      $result = array();
-      $result["id"] = $dao->id;
-      $result["table_name"] = $dao->table_name;
-      
-      return $result;
+    if(isset($table_name)) {
+      return $table_name;
     }
     else {
-      CRM_Core_Error::fatal(ts('No custom group exists for name: '. $title));
+      CRM_Core_Error::fatal(ts('No Custom Group exists for Custom Field id: '. $customFieldId));
     }
   }
   
   /**
   * Finds Custom field column name for group id.
-  * Throws CiviCRM fatal error if Custom field cannot be found with given group id.
+  * Throws CiviCRM fatal error if Custom field cannot be found with given id.
   *
-  * @param string|int $groupId Custom group id
+  * @param string|int $customFieldId Custom field id
   * @return string Custom field column name
   */
-  public function getCustomFieldColumnForGroupId($groupId) {
-    $groupId = (int) $groupId;
+  public function getCustomFieldColumnForId($customFieldId) {
+    $customFieldId = (int) $customFieldId;
   
     $sql = "
       SELECT column_name
       FROM civicrm_custom_field
-      WHERE custom_group_id = $groupId
+      WHERE id = $customFieldId
     ";
     
     $column_name = CRM_Core_DAO::singleValueQuery($sql);
@@ -97,7 +100,7 @@ class CustomFieldHelper {
       return $column_name;
     }
     else {
-      CRM_Core_Error::fatal(ts('No custom field exists for group id: '. $groupId));
+      CRM_Core_Error::fatal(ts('No custom field exists for id: '. $customFieldId));
     }
   }
   
@@ -209,5 +212,17 @@ class CustomFieldHelper {
     }
     
     return $result;
+  }
+  
+  /**
+  * Checks that this CustomFieldHelper version number is same as parameter version number. 
+  * Throws CiviCRM fatal exception id version is wrong.
+  *
+  * @param string $version Version nunmber as String 
+  */
+  public static function checkVersion($version) {
+    if(CustomFieldHelper::VERSION !== $version) {
+      CRM_Core_Error::fatal("CustomFieldHelper is version ". CustomFieldHelper::VERSION ." and not version ". $version);
+    }
   }
 }

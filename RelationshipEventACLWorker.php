@@ -16,6 +16,7 @@ RelationshipACLQueryWorker::checkVersion("1.1");
 if(class_exists('CustomFieldHelper') === false) {
   require_once "CustomFieldHelper.php";
 }
+CustomFieldHelper::checkVersion("1.1");
 
 /**
 * Only import phpQuery if it is not already loaded. Multiple imports can happen
@@ -33,9 +34,9 @@ class RelationshipEventACLWorker {
   
   /**
   * Config key for civicrm_relationshipeventacl_config table. This key 
-  * stores name of Event Custom field group that stores event owner contact id.
+  * stores id of Event Custom field that stores event owner contact id.
   */
-  const CONFIG_KEY_EVENT_OWNER_CUSTOMGROUP_NAME = "eventOwnerCustomGroupName";
+  const CONFIG_KEY_EVENT_OWNER_CUSTOMFIELD_ID = "eventOwnerCustomFieldId";
   
   /**
   * Executed when any Contribution Report is displayed
@@ -333,7 +334,7 @@ class RelationshipEventACLWorker {
     $allowedContactIDs = $aclWorker->getContactIDsWithEditPermissions($currentUserContactID);
     
     //Array with event ID as key and event owner contact ID as value
-    $customFieldWorker = new CustomFieldHelper($this->getEventOwnerCustomGroupNameFromConfig());
+    $customFieldWorker = new CustomFieldHelper($this->getEventOwnerCustomFieldIdFromConfig());
     $eventOwnerMap = $customFieldWorker->loadAllValues();
     
     foreach ($contributionIds as $index => &$contributionId) {
@@ -507,7 +508,7 @@ class RelationshipEventACLWorker {
     $allowedContactIDs = $worker->getContactIDsWithEditPermissions($currentUserContactID);
     
     //Array with event ID as key and event owner contact ID as value
-    $worker = new CustomFieldHelper($this->getEventOwnerCustomGroupNameFromConfig());
+    $worker = new CustomFieldHelper($this->getEventOwnerCustomFieldIdFromConfig());
     $eventOwnerMap = $worker->loadAllValues();
     
     //If set of events is not specified, load all event ids
@@ -580,26 +581,26 @@ class RelationshipEventACLWorker {
   }
   
   /**
-  * Return Contribution custom field group name that is used to store contribution 
+  * Return Contribution custom field id that is used to store contribution 
   * owner contact id.
   *
-  * @return string Custom field group title name.
+  * @return int Custom field id.
   */
-  private function getEventOwnerCustomGroupNameFromConfig() {
+  private function getEventOwnerCustomFieldIdFromConfig() {
     $sql = "
       SELECT config_value  
       FROM civicrm_relationshipeventacl_config
-      WHERE config_key = '".RelationshipEventACLWorker::CONFIG_KEY_EVENT_OWNER_CUSTOMGROUP_NAME."'
+      WHERE config_key = '".RelationshipEventACLWorker::CONFIG_KEY_EVENT_OWNER_CUSTOMFIELD_ID."'
     ";
     
-    $customGroupName = CRM_Core_DAO::singleValueQuery($sql);
+    $customFieldId = CRM_Core_DAO::singleValueQuery($sql);
     
-    if(!isset($customGroupName)) {
-      CRM_Core_Error::fatal(ts('relationshipEventACL extension requires Custom field config for Event ownership. '.
-      'Add Custom group name to civicrm_relationshipeventacl_config table.'));
+    if(!isset($customFieldId)) {
+      CRM_Core_Error::fatal(ts('relationshipEventACL extension requires Custom field id config for Event ownership. '.
+      'Add Custom field id to civicrm_relationshipeventacl_config table.'));
     }
     
-    return $customGroupName;
+    return (int) $customFieldId;
   }
   
   /**
