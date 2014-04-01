@@ -81,7 +81,7 @@ cj(function ($) {
     
     html += '<tr>';
     html += '<td class="label"><label for="config_key">Config Key<span class="crm-marker" title="This field is required.">*</span></label></td>';
-    html += '<td id="config_key"></td>';
+    html += '<td id="config_key">eventOwnerCustomFieldId</td>';
     html += '</tr>';
     
     html += '<tr>';
