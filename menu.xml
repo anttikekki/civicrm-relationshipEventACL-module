@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="iso-8859-1" ?>
+<menu>
+  <item>
+    <path>civicrm/relationshipEventACL/settings</path>
+    <title>RelationshipEventACL Settings</title>
+    <page_callback>Admin_Page_RelationshipEventACLAdmin</page_callback>
+    <access_arguments>administer CiviCRM</access_arguments>
+  </item>
+  <item>
+    <path>civicrm/relationshipEventACL/settings/ajax/getConfig</path>
+    <page_callback>Admin_Page_RelationshipEventACLAdminAjax::getConfig</page_callback>
+    <access_arguments>administer CiviCRM</access_arguments>
+  </item>
+  <item>
+    <path>civicrm/relationshipEventACL/settings/ajax/saveConfigRow</path>
+    <page_callback>Admin_Page_RelationshipEventACLAdminAjax::saveConfigRow</page_callback>
+    <access_arguments>administer CiviCRM</access_arguments>
+  </item>
+  <item>
+    <path>civicrm/relationshipEventACL/settings/ajax/deleteConfigRow</path>
+    <page_callback>Admin_Page_RelationshipEventACLAdminAjax::deleteConfigRow</page_callback>
+    <access_arguments>administer CiviCRM</access_arguments>
+  </item>
+</menu>
