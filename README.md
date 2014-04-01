@@ -43,8 +43,8 @@ With this module User 1 can see and edit Event 2 but not Event 1. Event 2 is own
 
 ### Installation
 1. Copy _com.github.anttikekki.relationshipEventACL_ folder to CiviCRM extension folder and enable extension in administration.
-2. Insert row to this module configuration table `civicrm_relationshipeventacl_config`. `config_key` column value is `eventOwnerCustomGroupName` and `congif_value` column value is Event custom field group title name that stores owner contact info.
-3. Rebuild navigation menu. Go to Administer -> System Settings -> Cleanup Caches and Update Paths and push `Cleanup caches`
+2. Rebuild navigation menu. Go to Administer -> System Settings -> Cleanup Caches and Update Paths and push `Cleanup caches`.
+3. Go to _Administer -> RelationshipEventACL -> Settings_ and set Event custom field id that stores owner contact info.
 
 This module uses temporary tables in database so CiviCRM MySQL user has to have permissions to create these kind of tables.
 
