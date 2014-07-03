@@ -7,7 +7,7 @@
 if(class_exists('RelationshipACLQueryWorker') === false) {
   require_once "RelationshipACLQueryWorker.php";
 }
-RelationshipACLQueryWorker::checkVersion("1.1");
+RelationshipACLQueryWorker::checkVersion("1.2");
 
 /**
 * Only import worker if it is not already loaded. Multiple imports can happen

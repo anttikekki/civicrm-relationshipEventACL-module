@@ -6,14 +6,14 @@
 *
 * This worker traverses the whole contact relation tree from given contact id.
 *
-* @version 1.1
+* @version 1.2
 */
 class RelationshipACLQueryWorker {
 
   /**
   * Version of this worker
   */
-  const VERSION = "1.1";
+  const VERSION = "1.2";
 
   /**
   * Singleton instace of this worker
@@ -110,7 +110,8 @@ class RelationshipACLQueryWorker {
 
     //B to A
     $sql = "INSERT INTO $resultTableName
-      SELECT contact_id_a FROM civicrm_relationship
+      SELECT DISTINCT contact_id_a 
+      FROM civicrm_relationship
       WHERE contact_id_b = $contactID
       AND is_active = 1
       AND (start_date IS NULL OR start_date <= '{$now}' )
@@ -121,7 +122,8 @@ class RelationshipACLQueryWorker {
 
     //A to B
     $sql = "REPLACE INTO $resultTableName
-      SELECT contact_id_b FROM civicrm_relationship
+      SELECT DISTINCT contact_id_b 
+      FROM civicrm_relationship
       WHERE contact_id_a = $contactID
       AND is_active = 1
       AND (start_date IS NULL OR start_date <= '{$now}' )
@@ -146,12 +148,11 @@ class RelationshipACLQueryWorker {
 
     //A to B
     $sql = "INSERT INTO $workTableName
-      SELECT contact_id_b
+      SELECT DISTINCT contact_id_b
       FROM $resultTableName tmp
       LEFT JOIN civicrm_relationship r  ON tmp.contact_id = r.contact_id_a
       INNER JOIN civicrm_contact c ON c.id = r.contact_id_a 
-      WHERE
-      r.is_active = 1
+      WHERE r.is_active = 1
       AND (start_date IS NULL OR start_date <= '{$now}' )
       AND (end_date IS NULL OR end_date >= '{$now}')
       AND is_permission_a_b = 1
@@ -160,12 +161,11 @@ class RelationshipACLQueryWorker {
 
     //B to A
     $sql = "REPLACE INTO $workTableName
-      SELECT contact_id_a
+      SELECT DISTINCT contact_id_a
       FROM $resultTableName tmp
       LEFT JOIN civicrm_relationship r ON tmp.contact_id = r.contact_id_b
       INNER JOIN civicrm_contact c ON c.id = r.contact_id_b 
-      WHERE
-      r.is_active = 1
+      WHERE r.is_active = 1
       AND (start_date IS NULL OR start_date <= '{$now}' )
       AND (end_date IS NULL OR end_date >= '{$now}')
       AND is_permission_b_a = 1
