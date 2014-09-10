@@ -314,12 +314,17 @@ class RelationshipEventACLWorker {
   
   /**
   * Iterates array of Contribution ids and removes Contributions ids that belongs to Events where current logged in user does not have 
-  * editing rights. Editing rights are based on relationship tree.
+  * editing rights. Editing rights are based on relationship tree. Administrator can see all contributions.
   *
   * @param array $contributionIds Array of Contribution ids
   * @return array Array of allowed Contribution ids
   */
   private function getAllowedEventContributionIds($contributionIds) {
+    //Administrator can see all contributions
+    if(user_access('administer CiviCRM')) {
+      return $contributionIds;
+    }
+
     /*
     * Find Event ids for contributions. Uses civicrm_participant_payment table to link Contribution to Event.
     * Return value array key is Contribution id and value is Event id.
@@ -501,16 +506,6 @@ class RelationshipEventACLWorker {
   * @return array Array of allowed event ids
   */
   private function getAllowedEventIds($eventIds = NULL) {
-    $currentUserContactID = $this->getCurrentUserContactID();
-    
-    //All contact IDs the current logged in user has rights to edit through relationships
-    $worker = RelationshipACLQueryWorker::getInstance();
-    $allowedContactIDs = $worker->getContactIDsWithEditPermissions($currentUserContactID);
-    
-    //Array with event ID as key and event owner contact ID as value
-    $worker = new CustomFieldHelper($this->getEventOwnerCustomFieldIdFromConfig());
-    $eventOwnerMap = $worker->loadAllValues();
-    
     //If set of events is not specified, load all event ids
     if(!isset($eventIds)) {
       $sql = "
@@ -525,6 +520,21 @@ class RelationshipEventACLWorker {
         $eventIds[] = $dao->id;
       }
     }
+
+    //Administrator can see all events
+    if(user_access('administer CiviCRM')) {
+      return $eventIds;
+    }
+
+    $currentUserContactID = $this->getCurrentUserContactID();
+    
+    //All contact IDs the current logged in user has rights to edit through relationships
+    $worker = RelationshipACLQueryWorker::getInstance();
+    $allowedContactIDs = $worker->getContactIDsWithEditPermissions($currentUserContactID);
+    
+    //Array with event ID as key and event owner contact ID as value
+    $worker = new CustomFieldHelper($this->getEventOwnerCustomFieldIdFromConfig());
+    $eventOwnerMap = $worker->loadAllValues();
     
     foreach ($eventIds as $index => &$eventId) {
       //Skip events that does not have owner info. These are always visible.
